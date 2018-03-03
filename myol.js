@@ -712,9 +712,7 @@ function OSMlayer(url, attribution) {
 		source: new ol.source.XYZ({
 			url: url,
 			attributions: [
-				new ol.Attribution({
-					html: attribution || ''
-				}),
+				attribution || '',
 				ol.source.OSM.ATTRIBUTION
 			]
 		})
@@ -778,9 +776,7 @@ function googleLayer(layer) {
 	return new ol.layer.Tile({
 		source: new ol.source.XYZ({
 			url: '//mt{0-3}.google.com/vt/lyrs=' + layer + '&x={x}&y={y}&z={z}',
-			attributions: new ol.Attribution({
-				html: '<a href="https://www.google.com/maps">Google</a>'
-			})
+			attributions: '<a href="https://www.google.com/maps">Google</a>'
 		})
 	});
 }
@@ -832,10 +828,9 @@ function ignLayer(key, layer, format) {
 			format: format || 'image/jpeg',
 			tileGrid: IGNtileGrid,
 			style: 'normal',
-			attributions: new ol.Attribution({
-				html: '<a href="http://www.geoportail.fr/" target="_blank">' +
-					'<img src="https://api.ign.fr/geoportail/api/js/latest/theme/geoportal/img/logo_gp.gif"></a>'
-			})
+			attributions:
+				'<a href="http://www.geoportail.fr/" target="_blank">' +
+				'<img src="https://api.ign.fr/geoportail/api/js/latest/theme/geoportal/img/logo_gp.gif"></a>'
 		})
 	});
 }
@@ -919,9 +914,7 @@ function swissLayer(layer) {
 				: '',
 			tileGrid: tileGrid,
 			requestEncoding: 'REST',
-			attributions: new ol.Attribution({
-				html: '<a href="https://map.geo.admin.ch/">SwissTopo</a>'
-			})
+			attributions: '<a href="https://map.geo.admin.ch/">SwissTopo</a>'
 		}))
 	});
 }
@@ -938,9 +931,7 @@ function igmLayer() {
 			params: {
 				layers: layer
 			},
-			attributions: new ol.Attribution({
-				html: '<a href="http://www.pcn.minambiente.it/viewer">IGM</a>'
-			})
+			attributions: '<a href="http://www.pcn.minambiente.it/viewer">IGM</a>'
 		})
 	}
 
@@ -963,9 +954,7 @@ function spainLayer(serveur, layer) {
 				'&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg' +
 				'&style=default&tilematrixset=GoogleMapsCompatible' +
 				'&TileMatrix={z}&TileCol={x}&TileRow={y}',
-			attributions: new ol.Attribution({
-				html: '<a href="http://www.ign.es/">IGN España</a>'
-			})
+			attributions: '<a href="http://www.ign.es/">IGN España</a>'
 		})
 	});
 }
@@ -992,6 +981,7 @@ function bingLayer(layer, key) {
 // Ordnance Survey : Great Britain map
 
 // Requires incompleteTileLayer
+// TODO : attribution : Ordnance Survey
 //***************************************************************
 function osLayer(key) {
 	return incompleteTileLayer([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
@@ -1001,11 +991,6 @@ function osLayer(key) {
 		})
 	});
 }
-/*TBD BUG OS par d'attribution
-			attributions: new ol.Attribution({
-				html: '<a target="_blank" href="http://www.ordnancesurvey.co.uk/oswebsite/web-services/os-openspace/developer-agreement.html" title="Crown &copy; and database rights 2017 Ordnance Survey">Ordnance Survey</a>'
-			})
-*/
 
 //***************************************************************
 // MARQUEURS
