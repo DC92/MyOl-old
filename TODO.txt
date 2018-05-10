@@ -1,0 +1,29 @@
+BUGS
+Click editeur = charge une page undefined !!!!
+fullscreen
+	pas toute la page !
+	les icones ne sont pas ou est le hover
+
+BUGS MOBILES
+
+TEST
+Voir traffic réseau (autre couche = ord survey ??)
+mobiles ! boutons trop grand ou trop pres
+https
+
+TODO
+GeoJSON Ajax filtre / paramètres
+	setURL geojson
+	setRequest OVERPASS
+check , à la fin des tablos
+mem cookie couches overlay
+Locales
+upload GPX
+	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
+download GPX
+	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
+
+BEST
+Superzoom
+Harmoniser buttonXxxx yyyElement ...
+Site off line, application

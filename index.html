@@ -7,81 +7,18 @@
 
 	<!-- Openlayers -->
 	<link  href="ol-dist/ol.css" type="text/css" rel="stylesheet">
-	<!--script src="http://openlayers.org/en/latest/build/ol-debug.js"></script-->
 	<script src="ol-dist/ol-debug.js"></script>
 
 	<!-- Recherche par nom -->
-	<link  href="geocoder/ol-geocoder.css" type="text/css" rel="stylesheet">
-	<script src="geocoder/ol-geocoder.js"></script>
+	<link  href="geocoder-dist/ol-geocoder.css" type="text/css" rel="stylesheet">
+	<script src="geocoder-dist/ol-geocoder.js"></script>
 
 	<!-- Proj4 -->
-	<script src="proj4.js"></script>
+	<script src="proj4js-dist/proj4.js"></script>
 
 	<!-- Dominique -->
-	<script type="text/javascript" src="myol.js"></script>
-	<style>
-		.ol-coordinate {
-			bottom: 30px;
-			left: 8px;
-			position: absolute;
-			border-radius: 3px;
-			font-size: small;
-			color: white;
-			background-color: rgba(0, 60, 136, 0.3);
-			padding: 0 2px;
-		}
-
-		.ol-geocoder .gcd-txt-input {
-			padding-right: 5px;
-		}
-		.ol-geocoder .gcd-txt-control {
-			height: 2em;
-		}
-		.ol-geocoder.gcd-txt-container {
-			width: 50%;
-		}
-
-		.ol-full-screen {
-			top: 4em;
-			left: .5em;
-			right: auto;
-		}
-
-		.ol-geocoder.gcd-gl-container {
-			top: 6em;
-		}
-		.ol-geocoder .gcd-gl-btn {
-			width: 1.375em;
-			height: 1.375em;
-		}
-  
-		.switch-layer {
-			font-size: small;
-			max-height: 100%;
-			overflow-y: scroll;
-		}
-		.switch-layer input {
-			margin: 0;
-			position: relative;
-			top: 2px;
-		}
-		.switch-layer:hover {
-			background-color: white;
-		}
-		.overpass-popup{
-			background-color: #def;
-			padding: 5px;
-			border-radius: 5px;
-    border: 1px solid #abc;
-	}
-		.overpass-popup p{
-			font-size: small;
-			margin: 0;
-		}
-.overpass-popup p:first-letter {
-    text-transform: uppercase;
-}
-	</style>
+	<link  href="myol.css" type="text/css" rel="stylesheet">
+	<script src="myol.js" type="text/javascript"></script>
 </head>
 <body>
 	<!--input id="range" type="range" min="0" max="100" value="50" oninput="layerSelection()" /-->
@@ -102,37 +39,6 @@
 	</textarea>
 
 <script>
-/*
-BUGS
-Click editeur = charge une page undefined !!!!
-fullscreen
-	pas toute la page !
-	les icones ne sont pas ou est le hover
-
-BUGS MOBILES
-
-TEST
-Voir traffic réseau (autre couche = ord survey ??)
-mobiles ! boutons trop grand ou trop pres
-https
-
-TODO
-GeoJSON Ajax filtre / paramètres
-	setURL geojson
-	setRequest OVERPASS
-check , à la fin des tablos
-mem cookie couches overlay
-Locales
-upload GPX
-	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
-download GPX
-	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
-
-BEST
-Superzoom
-Harmoniser buttonXxxx yyyElement ...
-Site off line, application
-*/
 
 // LA CARTE ------------------------------------------------
 var IGNkey = 'o6owv8ubhn3vbz2uj8jq5j0z'; // localhost
