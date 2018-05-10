@@ -1,0 +1,64 @@
+.ol-coordinate {
+	bottom: 30px;
+	left: 8px;
+	position: absolute;
+	border-radius: 3px;
+	font-size: small;
+	color: white;
+	background-color: rgba(0, 60, 136, 0.3);
+	padding: 0 2px;
+}
+
+.ol-geocoder .gcd-txt-input {
+	padding-right: 5px;
+}
+.ol-geocoder .gcd-txt-control {
+	height: 2em;
+}
+.ol-geocoder.gcd-txt-container {
+	width: 50%;
+}
+
+.ol-full-screen {
+	top: 4em;
+	left: .5em;
+	right: auto;
+}
+
+.ol-geocoder.gcd-gl-container {
+	top: 6em;
+}
+.ol-geocoder .gcd-gl-btn {
+	width: 1.375em;
+	height: 1.375em;
+}
+
+.switch-layer {
+	font-size: small;
+	max-height: 100%;
+	overflow-y: scroll;
+}
+.switch-layer input {
+	margin: 0;
+	position: relative;
+	top: 2px;
+}
+.switch-layer:hover {
+	background-color: white;
+}
+
+/* TBD OVERPASS
+.overpass-popup{
+	background-color: #def;
+	padding: 5px;
+	border-radius: 5px;
+border: 1px solid #abc;
+}
+.overpass-popup p{
+	font-size: small;
+	margin: 0;
+}
+.overpass-popup p:first-letter {
+    text-transform: uppercase;
+}
+*/
