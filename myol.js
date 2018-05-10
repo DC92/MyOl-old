@@ -7,47 +7,20 @@
 //******************************************************************************
 
 /**
- * Detects real human activity.
- * If none, cookieHit = false suppose it's a bot.
- */
-//TBD ne détecte pas seulement le reload : n'affiche pas !
-var pageHit = 0,
-	cookieHit = navigator.cookieEnabled && parseInt((document.cookie + 'activity=1').match(/activity=([^;]+)/)[1]);
-
-function checkHit() {
-	document.cookie = 'activity=' + (cookieHit + pageHit++) / 2 + ';path=/';
-}
-checkHit();
-
-['mousemove', 'scroll', 'touchstart', 'touchmove'].map(function(e) {
-	window.addEventListener(e, checkHit);
-});
-/////////////////////////////////////////////////////////
-
-/**
- * Inactive all layers if it's a bot
- */
-if (navigator.userAgent.search( // Inactive maps if agent is a bot
-		/arach|archiver|bot|crawl|curl|factory|index|partner|rss|scoot|search|seek|semantic|spider|spyder|yandex/i
-	) != -1) {
-	ol.Map.prototype.addLayer = function() {};
-}
-
-/**
  * ol.layer options
  * option.onAdd {function(map)} to be executed when the layer is added to the map
  * option.hover {ol.style.Style | ol.StyleFunction} style to be used when the pointer hover the feature
  * option.click {ol.style.Style | ol.StyleFunction} style to be used when the mouse click on the feature
  */
-var oldMapAddLayer = ol.Map.prototype.addLayer;
+var formerMapAddLayer = ol.Map.prototype.addLayer;
 ol.Map.prototype.addLayer = function(layer) { // Overwrite ol.Map.addLayer
-	oldMapAddLayer.call(this, layer); // Call former method
+	formerMapAddLayer.call(this, layer); // Call former method
 	layer.onAdd_(this); // Call ol.layer function
 };
 
-var oldLayerBase = ol.layer.Base;
+var formerLayerBase = ol.layer.Base;
 ol.layer.Base = function(options) { // Overwrite ol.layer
-	oldLayerBase.call(this, options); // Call former method
+	formerLayerBase.call(this, options); // Call former method
 
 	this.onAdd_ = function(map) { // Private function called by ol.Map.addLayer
 		// onAdd layer option
@@ -148,7 +121,9 @@ function geoJsonLayer(options) {
 			});
 		},
 		click: function(feature) {
-			window.location.href = options.properties(feature.getProperties()).clickUrl;
+			var url = options.properties(feature.getProperties()).clickUrl;
+			if (url)
+				window.location.href = url;
 		}
 	}, options));
 }
@@ -624,7 +599,7 @@ function controlLayers(baseLayers, overLayers) {
 
 		// Refresh layer visibility
 		var selectorInputs = selectorElement.getElementsByTagName('input');
-//TBD ?? pourquoi ça marche pas ?					for (var i in selectorInputs)
+//TODO ?? pourquoi ça marche pas ?					for (var i in selectorInputs)
 		for (var i = 0; i < selectorInputs.length; i++)
 			(baseLayers[selectorInputs[i].value] || overLayers[selectorInputs[i].value]).setVisible(selectorInputs[i].checked);
 
@@ -870,7 +845,7 @@ function incompleteTileLayer(extent, sources) {
 
 		// Search for sources according to the map resolution
 		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).find(function(e) {
+			resolution = Object.keys(sources).find(function(e) { //TODO : IE ne gére pas find
 				return e > view.getResolution();
 			});
 
@@ -909,9 +884,7 @@ function swissLayer(layer) {
 	return incompleteTileLayer([664577, 5753148, 1167741, 6075303], {
 		500: new ol.source.WMTS(({
 			crossOrigin: 'anonymous',
-			url: cookieHit
-				? '//wmts2{0-4}.geo.admin.ch/1.0.0/' + layer + '/default/current/3857/{TileMatrix}/{TileCol}/{TileRow}.jpeg'
-				: '',
+			url: '//wmts2{0-4}.geo.admin.ch/1.0.0/' + layer + '/default/current/3857/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
 			tileGrid: tileGrid,
 			requestEncoding: 'REST',
 			attributions: '<a href="https://map.geo.admin.ch/">SwissTopo</a>'
@@ -1078,8 +1051,6 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 // Requires controlButton
 // Requires ol.layer onAdd option
 //***************************************************************
-//TBD BUG EDITEUR click cretion ligne appelle une nouvelle page
-
 function lineEditor(id, snaps) {
 
 	// Déclaration des boutons de l'éditeur
@@ -1104,7 +1075,7 @@ function lineEditor(id, snaps) {
 		editControl('M',
 			"Click sur un sommet puis déplacer pour modifier\n" +
 			"Click sur une ligne puis déplacer pour créer un sommet\n" +
-			"Alt+click sur un sommet ou un segment pour le supprimer",
+			"Alt+click sur un sommet ou un segment pour le supprimer"
 		),
 		editControl('-', 'Click sur une ligne pour la supprimer')
 	];
@@ -1119,7 +1090,8 @@ function lineEditor(id, snaps) {
 		),
 		// Déclaration de la couche à éditer
 		source = new ol.source.Vector({
-			features: features
+			features: features,
+			wrapX: false
 		}),
 		layer = new ol.layer.Vector({
 			source: source,
@@ -1167,20 +1139,42 @@ function lineEditor(id, snaps) {
 		})
 	};
 
+	function clickBouton() { // On a cliqué sur un bouton de l'éditeur !
+		// On commence par enlever toutes les interactions
+		for (var i in interactions)
+			map.removeInteraction(interactions[i]);
+
+		// On colore en blanc tous les boutons ede l'éditeur
+		var editButtons = document.getElementsByClassName('ol-button-edit');
+		for (var i = 0; i < editButtons.length; i++)
+			editButtons[i].firstChild.style.color = 'white';
+
+		// Si on re-clique sur le même bouton, on le désactive
+		if (actif == this.textContent)
+			actif = null;
+		else { // Sinon, on colore le bouton actif en noir,
+			actif = this.textContent;
+			this.style.color = 'black';
+			// et on active les intéractions correspondantes
+			for (var i = 0; i < controles[actif].length; i++)
+				map.addInteraction(interactions[controles[actif][i]]);
+		}
+	}
+
 	// Snap sur des sources extèrieures à l'éditeur
 	if (snaps)
-//TBD		for (var s = 0; s < snaps.length; s++)
+//TODO		for (var s = 0; s < snaps.length; s++)
 		for (var s in snaps)
 			snaps[s].getSource().on('change', function() {
 				this.forEachFeature(
 					function(f) {
-						interactions['snap'].addFeature(f);
+						interactions.snap.addFeature(f);
 					}
 				);
 			});
 
 	// Supprime un segment et coupe une ligne en 2
-	interactions['modify'].on('modifyend', function(event) {
+	interactions.modify.on('modifyend', function(event) {
 		if (ol.events.condition.altKeyOnly(event.mapBrowserEvent) &&
 			event.mapBrowserEvent.type == 'pointerup') {
 			// On récupère la liste des features visés
@@ -1204,7 +1198,7 @@ function lineEditor(id, snaps) {
 				source.removeFeature(features[1]);
 
 				// On dessine les 2 lines de lignes
-//TBD				for (var f = 0; f < cs.length; f++)
+//TODO				for (var f = 0; f < cs.length; f++)
 				for (var f in cs)
 					if (cs[f].length > 1) // s'ils ont au moins 2 points
 						source.addFeature(new ol.Feature({
@@ -1219,8 +1213,8 @@ function lineEditor(id, snaps) {
 		var features = source.getFeatures(),
 			lines = [];
 
-		// On fait un grand tableau avec tous les lines
-//TBD		for (var f = 0; f < features.length; f++) {
+		// On fait un grand tableau avec toutes les lines
+//TODO		for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
 			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
 				coordinates = []; // On va les remettre en tableau de lonlat
@@ -1240,8 +1234,8 @@ function lineEditor(id, snaps) {
 
 		// On recherche 2 lines ayant le même premier bout
 		for (var m in lines) {
-//TBD 		for (var m = 0; m < lines.length; m++) {
-			var found = lines.find(function(event) { //TBD IE ne supporte pas find
+//TODO 		for (var m = 0; m < lines.length; m++) {
+			var found = lines.find(function(event) { //TODO IE ne supporte pas find
 				if (event.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
 				if (event.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
 				if (event.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
@@ -1263,35 +1257,14 @@ function lineEditor(id, snaps) {
 		}
 	}
 
-	function clickBouton() { // On a cliqué sur un bouton de l'éditeur !
-		// On commence par enlever toutes les interactions
-		for (var i in interactions)
-			map.removeInteraction(interactions[i]);
-
-		// On colore en blanc tous les boutons ede l'éditeur
-		var editButtons = document.getElementsByClassName('ol-button-edit');
-		for (var i = 0; i < editButtons.length; i++)
-			editButtons[i].firstChild.style.color = 'white';
-
-		// Si on re-clique sur le même bouton, on le désactive
-		if (actif == this.textContent)
-			actif = null;
-		else { // Sinon, on colore le bouton actif en noir,
-			actif = this.textContent;
-			this.style.color = 'black';
-			// et on active les intéractions correspondantes
-			for (var i = 0; i < controles[actif].length; i++)
-				map.addInteraction(interactions[controles[actif][i]]);
-		}
-
+	source.on(['change'], function() {
+		stickLines();
 		// Sauver les lignes dans <EL> sous forme geoJSON à chaque modif
-		map.on(['pointermove', 'click', 'change'], function() {
-			stickLines();
-			el.textContent = format.writeFeatures(source.getFeatures(), {
-				featureProjection: 'EPSG:3857' // La projection des données internes
-			});
+		el.textContent = format.writeFeatures(source.getFeatures(), {
+			featureProjection: 'EPSG:3857' // La projection des données internes
 		});
-	}
+		//source.changed();
+	});
 
 	return layer;
 }

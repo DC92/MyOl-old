@@ -1,5 +1,6 @@
+ALL TODO
+
 BUGS
-Click editeur = charge une page undefined !!!!
 fullscreen
 	pas toute la page !
 	les icones ne sont pas ou est le hover
@@ -27,3 +28,6 @@ BEST
 Superzoom
 Harmoniser buttonXxxx yyyElement ...
 Site off line, application
+
+REWRITE
+	https://github.com/JefferyHus/es6-crawler-detect/tree/master/dist

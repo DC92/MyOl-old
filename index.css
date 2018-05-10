@@ -47,7 +47,7 @@
 	background-color: white;
 }
 
-/* TBD OVERPASS
+/* OVERPASS */
 .overpass-popup{
 	background-color: #def;
 	padding: 5px;
@@ -61,4 +61,4 @@ border: 1px solid #abc;
 .overpass-popup p:first-letter {
     text-transform: uppercase;
 }
-*/
+
