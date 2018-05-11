@@ -38,29 +38,10 @@ var baseLayers = {
 };
 
 var overLayers = {
-	WRI: pointsWriLayer(),
+//TODO	OverPass: overpassLayer(),
+	Chemineur: chemineurLayer(),
 	Massifs: massifsWriLayer(),
-	Chemineur: geoJsonLayer({
-		url: 'http://chemineur.fr/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
-		properties: function(property) {
-			return {
-				styleImage: property.icone,
-				hoverText: property.nom,
-				clickUrl: property.url
-			}
-		}
-	})
-/*	,OverPass: overpassLayer({
-		// icon_name: '[overpass selection]'
-		ravitaillement: '["shop"~"supermarket|convenience"]',
-		bus: '["highway"="bus_stop"]',
-		parking: '["amenity"="parking"]["access"!="private"]',
-		camping: '["tourism"="camp_site"]',
-		'refuge-garde': '["tourism"="alpine_hut"]',
-		'cabane-non-gardee': '["building"="cabin"]',
-		abri: '["amenity"="shelter"]',
-		hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
-	})*/
+	WRI: pointsWriLayer()
 }
 
 var controls = [

@@ -57,7 +57,7 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 		// Click layer option
 		if (options.click)
 			map.addInteraction(new ol.interaction.Select({
-				layer: this,
+				layers: [this],
 				condition: ol.events.condition.singleClick,
 				style: options.click
 			}));
@@ -193,6 +193,25 @@ function massifsWriLayer() {
 }
 
 /**
+ * chemineur.fr POI LAYER
+ * return {ol.layer.Vector} to be added to the map
+ *
+ * Requires ol.layer onAdd options
+ */
+function chemineurLayer() {
+	return geoJsonLayer({
+		url: 'http://chemineur.fr/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
+		properties: function(property) {
+			return {
+				styleImage: property.icone,
+				hoverText: property.nom,
+				clickUrl: property.url
+			}
+		}
+	});
+}
+
+/**
  * OSM OVERPASS POI LAYER
  * return {ol.layer.Vector} to be added to the map
  *
@@ -201,6 +220,18 @@ function massifsWriLayer() {
  * Requires ol.layer.VectorAction
  */
 function overpassLayer(request) {
+	request = request || { // Default selection
+		// icon_name: '[overpass selection]'
+		ravitaillement: '["shop"~"supermarket|convenience"]',
+		bus: '["highway"="bus_stop"]',
+		parking: '["amenity"="parking"]["access"!="private"]',
+		camping: '["tourism"="camp_site"]',
+		'refuge-garde': '["tourism"="alpine_hut"]',
+		'cabane-non-gardee': '["building"="cabin"]',
+		abri: '["amenity"="shelter"]',
+		hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
+	}
+
 	var popup = new ol.Overlay(({
 		positioning: 'bottom-center',
 		offset: [0, -10],
@@ -738,6 +769,7 @@ function thunderforestLayer(layer, key) {
 	);
 }
 
+//TODO reprendre entête docs
 //***************************************************************
 // GOOGLE
 // No key / no api
@@ -1213,7 +1245,7 @@ function lineEditor(id, snaps) {
 		var features = source.getFeatures(),
 			lines = [];
 
-		// On fait un grand tableau avec toutes les lines
+		// On fait un grand tableau avec toutes les lignes
 //TODO		for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
 			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
