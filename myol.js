@@ -61,6 +61,19 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 				condition: ol.events.condition.singleClick,
 				style: options.click
 			}));
+
+map.addInteraction(new ol.interaction.Select({
+	condition: ol.events.condition.pointerMove,
+			filter: function (f) {
+				var l = ol.Sphere.getLength(f.getGeometry());
+				
+//var wgs84Sphere= new ol.Sphere(6378137);				
+/*DCMM*/{var _v=l,_r='LLL = ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
+				
+				return true;
+			}
+}));
+
 	}
 };
 
