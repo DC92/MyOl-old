@@ -31,3 +31,5 @@ Site off line, application
 
 REWRITE
 	https://github.com/JefferyHus/es6-crawler-detect/tree/master/dist
+	Line 85291:     ol.layer.Layer.prototype.setMap);
+	Line 32617: ol.Overlay.prototype.setMap = function(map) {

@@ -57,6 +57,7 @@ var controls = [
 		tipLabel: 'Plein écran'
 	}),
 	new ol.control.ScaleLine(),
+	new ol.control.LengthLine(),
 	new ol.control.MousePosition({
 		coordinateFormat: ol.coordinate.createStringXY(5),
 		projection: 'EPSG:4326',

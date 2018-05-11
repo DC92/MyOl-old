@@ -61,19 +61,61 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 				condition: ol.events.condition.singleClick,
 				style: options.click
 			}));
+	}
+};
 
-map.addInteraction(new ol.interaction.Select({
-	condition: ol.events.condition.pointerMove,
-			filter: function (f) {
-				var l = ol.Sphere.getLength(f.getGeometry());
-				
-//var wgs84Sphere= new ol.Sphere(6378137);				
-/*DCMM*/{var _v=l,_r='LLL = ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
-				
-				return true;
+/**
+ * Contrôle ui affiche la longueur d'une ligne survolée
+ */
+ol.control.LengthLine = function(opt_options) {
+	var options = opt_options ? opt_options : {};
+	options.className = 'ol-length-line';
+	ol.control.MousePosition.call(this, options);
+};
+ol.inherits(ol.control.LengthLine, ol.control.MousePosition);
+ol.control.LengthLine.prototype.updateHTML_ = function() {}; // Inhibe l'affichage de MousePosition
+
+ol.control.LengthLine.prototype.setMap = function(map) {
+	ol.control.MousePosition.prototype.setMap.call(this, map);
+	var element = this.element;
+
+	element.innerHTML = null;
+	if (map) {
+		var mip = new ol.interaction.Select({
+			condition: ol.events.condition.pointerMove,
+			hitTolerance: 3,
+			filter: function(f) {
+				var length = ol.Sphere.getLength(f.getGeometry());
+				if (length >= 100000)
+					element.innerHTML = (Math.round(length / 1000)) + ' km';
+				else if (length >= 10000)
+					element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+				else if (length >= 1000)
+					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+				else if (length >= 1)
+					element.innerHTML = (Math.round(length)) + ' m';
+
+				return length; // Continue Hover if line
 			}
-}));
+		});
+		map.addInteraction(mip);
 
+		// Get back the basic pointer when move out from the feature
+		var mip2 = new ol.interaction.Select({
+			condition: ol.events.condition.pointerMove,
+			hitTolerance: 8,
+			filter: function(f) {
+				return f.getGeometry().getType().indexOf('String') > 0; // Uniquement les lignes
+			}
+		});
+		ol.events.listen(
+			mip2.getFeatures(),
+			ol.CollectionEventType.REMOVE,
+			function() {
+				element.innerHTML = null;
+			}
+		);
+		map.addInteraction(mip2);
 	}
 };
 

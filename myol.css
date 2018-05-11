@@ -61,3 +61,14 @@ border: 1px solid #abc;
 .overpass-popup p:first-letter {
     text-transform: uppercase;
 }
+
+.ol-length-line{
+	bottom: 52px;
+	left: 8px;
+	position: absolute;
+	border-radius: 3px;
+	font-size: small;
+	color: white;
+    background: #39c;
+	padding: 0 2px;
+}
