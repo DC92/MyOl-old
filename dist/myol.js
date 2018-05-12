@@ -1172,7 +1172,8 @@ function editorButton(id, snapLayers) {
 				pixelTolerance: 5
 			}),
 			modify: new ol.interaction.Modify({
-				source: source
+				source: source,
+				deleteCondition: ol.events.condition.altKeyOnly && ol.events.condition.click //HACK parceque le système ne donne pas singleClick
 			}),
 			draw: new ol.interaction.Draw({
 				source: source,
@@ -1229,18 +1230,6 @@ function editorButton(id, snapLayers) {
 						}
 					);
 				});
-		/*
-		//HACK Often reselect modify interaction because it doesn't remove summits at the init !!
-				map.addInteraction(new ol.interaction.Select({
-					condition: ol.events.condition.pointerMove,
-					hitTolerance: 8,
-					filter: function() {
-						map.removeInteraction(interactions.modify);
-						map.addInteraction(interactions.modify);
-						map.removeInteraction(interactions.snap);
-						map.addInteraction(interactions.snap);
-					}
-				}));*/
 		setMode(true); // Edit mode by default
 	}
 
@@ -1253,7 +1242,7 @@ function editorButton(id, snapLayers) {
 			map.removeInteraction(interactions[i]);
 
 		if (editMode) {
-			map.addInteraction(interactions.modify); //TODO bug : doesn't remove summits at the init !! 
+			map.addInteraction(interactions.modify);
 			//HACK interactions.hover blocks the zoom if in duplicate with ol.control.LengthLine !!!
 			if (!document.getElementsByClassName('ol-length-line').length)
 				map.addInteraction(interactions.hover);
