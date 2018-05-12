@@ -19,20 +19,18 @@
 //TODO Superzoom
 //TODO Harmoniser buttonXxxx yyyElement ...
 //TODO Site off line, application
+//TODO traduire commentaires en 1 seule langue (UK ?)
 
 /**
- * ol.layer options
- * option.onAdd {function(map)} to be executed when the layer is added to the map
- * option.hover {ol.style.Style | ol.StyleFunction} style to be used when the pointer hover the feature
- * option.click {ol.style.Style | ol.StyleFunction} style to be used when the mouse click on the feature
+ * Ajoute onAdd_(map) aux layers
  */
-var formerMapAddLayer = ol.Map.prototype.addLayer;
+var formerMapAddLayer = ol.Map.prototype.addLayer;//HACK
 ol.Map.prototype.addLayer = function(layer) { // Overwrite ol.Map.addLayer
 	formerMapAddLayer.call(this, layer); // Call former method
 	layer.onAdd_(this); // Call ol.layer function
 };
 
-var formerLayerBase = ol.layer.Base;
+var formerLayerBase = ol.layer.Base;//HACK
 ol.layer.Base = function(options) { // Overwrite ol.layer
 	formerLayerBase.call(this, options); // Call former method
 
@@ -44,6 +42,7 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 			options.onAdd.call(this, map);
 
 		// Hover layer option
+		//TODO mettre le hover autre part qu'en général !!
 		if (options.hover) {
 			var hoverInteraction = new ol.interaction.Select({
 				layers: [this],
@@ -80,113 +79,277 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 	}
 };
 
+//***************************************************************
+// TILE LAYERS
+//***************************************************************
 /**
- * Contrôle qui affiche la longueur d'une ligne survolée
+ * Openstreetmap
  */
-ol.control.LengthLine = function(opt_options) {
-	var options = opt_options ? opt_options : {};
-	options.className = 'ol-length-line';
-	ol.control.MousePosition.call(this, options);
-};
-ol.inherits(ol.control.LengthLine, ol.control.MousePosition);
-ol.control.LengthLine.prototype.updateHTML_ = function() {}; // Inhibe l'affichage de MousePosition
-
-ol.control.LengthLine.prototype.setMap = function(map) {
-	ol.control.MousePosition.prototype.setMap.call(this, map);
-	var element = this.element;
-
-	element.innerHTML = null;
-	if (map) {
-		var mip = new ol.interaction.Select({
-			condition: ol.events.condition.pointerMove,
-			hitTolerance: 3,
-			filter: function(f) {
-				var length = ol.Sphere.getLength(f.getGeometry());
-				if (length >= 100000)
-					element.innerHTML = (Math.round(length / 1000)) + ' km';
-				else if (length >= 10000)
-					element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-				else if (length >= 1000)
-					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-				else if (length >= 1)
-					element.innerHTML = (Math.round(length)) + ' m';
-
-				return length; // Continue Hover if line
-			}
-		});
-		map.addInteraction(mip);
-
-		// Get back the basic pointer when move out from the feature
-		var mip2 = new ol.interaction.Select({
-			condition: ol.events.condition.pointerMove,
-			hitTolerance: 8,
-			filter: function(f) {
-				return ol.Sphere.getLength(f.getGeometry()) > 0; // Uniquement les lignes
-			}
-		});
-		ol.events.listen(
-			mip2.getFeatures(),
-			ol.CollectionEventType.REMOVE,
-			function() {
-				element.innerHTML = null;
-			}
-		);
-		map.addInteraction(mip2);
-	}
-};
-
-//***************************************************************
-function controlsCollection() {
-	return [
-		new ol.control.Zoom(),
-		new ol.control.Attribution({
-			collapsible: false // Attribution toujours ouverte
-		}),
-//TODO fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
-//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
-		new ol.control.FullScreen({
-			label: '\u21d4',
-			labelActive: '\u21ce',
-			tipLabel: 'Plein écran'
-		}),
-		new ol.control.ScaleLine(),
-		new ol.control.LengthLine(),
-		new ol.control.MousePosition({
-			coordinateFormat: ol.coordinate.createStringXY(5),
-			projection: 'EPSG:4326',
-			className: 'ol-coordinate'
-		}),
-		permalink({
-			init: true,
-			invisible: false
-		}),
-		// https://github.com/jonataswalker/ol-geocoder
-		new Geocoder('nominatim', {
-			provider: 'osm',
-			lang: 'FR',
-			placeholder: 'Recherche par nom' // Initialisation du champ de saisie
-		}),
-		buttonGPS(),
-		controlButton('&equiv;', {
-			title: 'Imprimer la carte',
-			action: function() {
-				window.print();
-			}
+function OSMlayer(url, attribution) {
+	return new ol.layer.Tile({
+		source: new ol.source.XYZ({
+			url: url,
+			attributions: [
+				attribution || '',
+				ol.source.OSM.ATTRIBUTION
+			]
 		})
-	];
+	});
 }
-//***************************************************************
 
+/**
+ * Kompas (austria)
+ */
+function kompassLayer(layer) {
+	return OSMlayer(
+		'http://ec{0-3}.cdn.ecmaps.de/WmsGateway.ashx.jpg?' + // Not available via https
+		'Experience=ecmaps&MapStyle=' + layer + '&TileX={x}&TileY={y}&ZoomLevel={z}',
+		'<a href="http://www.kompass.de/livemap/">KOMPASS</a>'
+	);
+}
+
+/**
+ * Thunderforest
+ */
+function thunderforestLayer(layer, key) {
+	return OSMlayer(
+		'//{a-c}.tile.thunderforest.com/' + layer + '/{z}/{x}/{y}.png?apikey=' + key,
+		'<a href="http://www.thunderforest.com">Thunderforest</a>'
+	);
+}
+
+/**
+ * Google
+ */
+function googleLayer(layer) {
+	return new ol.layer.Tile({
+		source: new ol.source.XYZ({
+			url: '//mt{0-3}.google.com/vt/lyrs=' + layer + '&x={x}&y={y}&z={z}',
+			attributions: '<a href="https://www.google.com/maps">Google</a>'
+		})
+	});
+}
+
+/**
+ * Stamen http://maps.stamen.com
+ */
+function stamenLayer(layer) {
+	return new ol.layer.Tile({
+		source: new ol.source.Stamen({
+		layer: layer
+	})});
+}
+
+/**
+ * IGN
+ */
+function ignLayer(key, layer, format) {
+	var IGNresolutions = [],
+		IGNmatrixIds = [];
+	for (var i = 0; i < 18; i++) {
+		IGNresolutions[i] = ol.extent.getWidth(ol.proj.get('EPSG:3857').getExtent()) / 256 / Math.pow(2, i);
+		IGNmatrixIds[i] = i.toString();
+	}
+	var IGNtileGrid = new ol.tilegrid.WMTS({
+		origin: [-20037508, 20037508],
+		resolutions: IGNresolutions,
+		matrixIds: IGNmatrixIds
+	});
+
+	return new ol.layer.Tile({
+		source: new ol.source.WMTS({
+			url: '//wxs.ign.fr/' + key + '/wmts',
+			layer: layer,
+			matrixSet: 'PM',
+			format: format || 'image/jpeg',
+			tileGrid: IGNtileGrid,
+			style: 'normal',
+			attributions:
+				'<a href="http://www.geoportail.fr/" target="_blank">' +
+				'<img src="https://api.ign.fr/geoportail/api/js/latest/theme/geoportal/img/logo_gp.gif"></a>'
+		})
+	});
+}
+
+/**
+ * Incomplete cards
+ * Virtual class
+ * displays OSM outside the zoom area, 
+ * displays blank outside the area of validity
+ */
+function incompleteTileLayer(extent, sources) {
+	var map, view,
+		layer = new ol.layer.Tile({
+			onAdd: function(m) {
+				map = m;
+				view = map.getView();
+				view.on('change', change);
+				change(); // At init
+			}
+		}),
+		backgroundSource = new ol.source.Stamen({
+			layer: 'terrain'
+		});
+
+	// Zoom has changed
+	function change() {
+		var resolution = 999999; // Max resolution
+		sources[resolution] = backgroundSource; // Add extrabound source on the top of the list
+
+		// Search for sources according to the map resolution
+		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
+			resolution = Object.keys(sources).find(function(e) { //TODO : IE ne gére pas find
+				return e > view.getResolution();
+			});
+
+		// Update layer if necessary
+		if (layer.getSource() != sources[resolution])
+			layer.setSource(sources[resolution]);
+	}
+
+	return layer;
+}
+
+/**
+ * Swisstopo https://api.geo.admin.ch/
+ * Register your domain: https://shop.swisstopo.admin.ch/fr/products/geoservice/swisstopo_geoservices/WMTS_info
+ */
+function swissLayer(layer) {
+	var projectionExtent = ol.proj.get('EPSG:3857').getExtent(),
+		resolutions = [],
+		matrixIds = [];
+	for (var r = 0; r < 18; ++r) {
+		resolutions[r] = ol.extent.getWidth(projectionExtent) / 256 / Math.pow(2, r);
+		matrixIds[r] = r;
+	}
+	var tileGrid = new ol.tilegrid.WMTS({
+		origin: ol.extent.getTopLeft(projectionExtent),
+		resolutions: resolutions,
+		matrixIds: matrixIds
+	});
+
+	return incompleteTileLayer([664577, 5753148, 1167741, 6075303], {
+		500: new ol.source.WMTS(({
+			crossOrigin: 'anonymous',
+			url: '//wmts2{0-4}.geo.admin.ch/1.0.0/' + layer + '/default/current/3857/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
+			tileGrid: tileGrid,
+			requestEncoding: 'REST',
+			attributions: '<a href="https://map.geo.admin.ch/">SwissTopo</a>'
+		}))
+	});
+}
+
+/**
+ * Italy IGM
+ */
+function igmLayer() {
+	function igmSource(url, layer) {
+		return new ol.source.TileWMS({
+			url: 'http://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/raster/' + url + '.map',
+			params: {
+				layers: layer
+			},
+			attributions: '<a href="http://www.pcn.minambiente.it/viewer">IGM</a>'
+		})
+	}
+
+	return incompleteTileLayer([660124, 4131313, 2113957, 5958411], { // EPSG:6875 (Italie)
+		100: igmSource('IGM_250000', 'CB.IGM250000'),
+		25: igmSource('IGM_100000', 'MB.IGM100000'),
+		5: igmSource('IGM_25000', 'CB.IGM25000')
+	});
+}
+
+/**
+ * Spain
+ */
+function spainLayer(serveur, layer) {
+	return new ol.layer.Tile({
+		source: new ol.source.XYZ({
+			url: '//www.ign.es/wmts/' + serveur + '?layer=' + layer +
+				'&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg' +
+				'&style=default&tilematrixset=GoogleMapsCompatible' +
+				'&TileMatrix={z}&TileCol={x}&TileRow={y}',
+			attributions: '<a href="http://www.ign.es/">IGN España</a>'
+		})
+	});
+}
+
+/**
+ * Bing (Microsoft)
+ */
+function bingLayer(layer, key) {
+	return new ol.layer.Tile({
+		source: new ol.source.BingMaps({
+			imagerySet: layer,
+			key: key,
+		})
+	});
+}
+
+/**
+ * Ordnance Survey : Great Britain
+ */
+//TODO : attribution : Ordnance Survey
+function osLayer(key) {
+	return incompleteTileLayer([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
+		100: new ol.source.BingMaps({
+			imagerySet: 'ordnanceSurvey',
+			key: key
+		})
+	});
+}
+
+/**
+ * Tile layers examples
+ */
+function layersCollection(keys) {
+	return {
+		'OSM-FR': OSMlayer('//{a-c}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'),
+		'OSM': OSMlayer('//{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+		'MRI': OSMlayer('//maps.refuges.info/hiking/{z}/{x}/{y}.png', '<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'),
+		'Hike & Bike': OSMlayer('http://{a-c}.tiles.wmflabs.org/hikebike/{z}/{x}/{y}.png', '<a href="http://www.hikebikemap.org/">hikebikemap.org</a>'), // Not on https
+		'Autriche': kompassLayer('KOMPASS Touristik'),
+//		'Kompas': kompassLayer(, 'KOMPASS'),
+//		'Kompas summer': kompassLayer('Summer OSM'),
+//		'Kompas winter': kompassLayer('Winter OSM'),
+//		'Kompas luftbild': kompassLayer('a'),
+		'OSM-outdoors': thunderforestLayer('outdoors', keys.thunderforest),
+		'OSM-cycle': thunderforestLayer('cycle', keys.thunderforest),
+		'OSM-landscape': thunderforestLayer('landscape', keys.thunderforest),
+		'OSM-transport': thunderforestLayer('transport', keys.thunderforest),
+		'IGN': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS'),
+		'IGN photos': ignLayer(keys.IGN, 'ORTHOIMAGERY.ORTHOPHOTOS'),
+		'IGN TOP 25': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD'),
+		'IGN classique': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.CLASSIQUE'),
+		// NOT YET	ignLayer('IGN avalanches', keys.IGN,'GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN'),
+		'Cadastre': ignLayer(keys.IGN, 'CADASTRALPARCELS.PARCELS', 'image/png'),
+		'Swiss': swissLayer('ch.swisstopo.pixelkarte-farbe'),
+		'Swiss photo': swissLayer('ch.swisstopo.swissimage'),
+		'Espagne': spainLayer('mapa-raster', 'MTN'),
+		'Espagne photo': spainLayer('pnoa-ma', 'OI.OrthoimageCoverage'),
+		'Italie': igmLayer(),
+		'Angleterre': osLayer(keys.bing),
+		'Bing': bingLayer('Road', keys.bing),
+		'Bing photo': bingLayer('Aerial', keys.bing),
+//		'Bing mixte': bingLayer ('AerialWithLabels', bingKey),
+		'Google road': googleLayer('m'),
+		'Google terrain': googleLayer('p'),
+		'Google photo': googleLayer('s'),
+		'Google hybrid': googleLayer('s,h'),
+		Stamen: stamenLayer('terrain'),
+		Watercolor: stamenLayer('watercolor'),
+		'Neutre': new ol.layer.Tile()
+	};
+}
 
 //***************************************************************
-// GEOJSON & AJAX LAYERS
+// VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
 /**
- * BBOX LIMITED STRATEGY
- * return {ol.loadingstrategy} to be used in layer definition
- *
+ * BBOX limited strategy
  * Same that bbox but reloads if we zoom in because more points can be under the limit
- * Requires ol.Map.prototype.addLayer
+ * return {ol.loadingstrategy} to be used in layer definition
  */
 ol.loadingstrategy.bboxLimited = function(extent, resolution) { // === bbox
 	if (this.resolution != resolution) // Force loading when zoom in
@@ -196,10 +359,7 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) { // === bbox
 };
 
 /**
- * GEOJSON POI LAYER
- * return {ol.layer.Vector} to be added to the map
- *
- * Requires ol.layer onAdd options
+ * GeoJson POI layer
  */
 function geoJsonLayer(options) {
 	return new ol.layer.Vector(ol.obj.assign({
@@ -243,10 +403,7 @@ function geoJsonLayer(options) {
 }
 
 /**
- * www.refuges.info POI LAYER
- * return {ol.layer.Vector} to be added to the map
- *
- * Requires ol.layer onAdd options
+ * www.refuges.info POI layer
  */
 function pointsWriLayer() {
 	return geoJsonLayer({
@@ -262,10 +419,7 @@ function pointsWriLayer() {
 }
 
 /**
- * www.refuges.info AREAS LAYER
- * return {ol.layer.Vector} to be added to the map
- *
- * Requires ol.layer onAdd options
+ * www.refuges.info areas layer
  */
 function massifsWriLayer() {
 	return geoJsonLayer({
@@ -307,10 +461,7 @@ function massifsWriLayer() {
 }
 
 /**
- * chemineur.fr POI LAYER
- * return {ol.layer.Vector} to be added to the map
- *
- * Requires ol.layer onAdd options
+ * chemineur.fr POI layer
  */
 function chemineurLayer() {
 	return geoJsonLayer({
@@ -326,12 +477,9 @@ function chemineurLayer() {
 }
 
 /**
- * OSM OVERPASS POI LAYER
- * return {ol.layer.Vector} to be added to the map
- *
+ * OSM overpass poi layer
  * doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
  * from: https://openlayers.org/en/latest/examples/vector-osm.html
- * Requires ol.layer.VectorAction
  */
 function overpassLayer(request) {
 	request = request || { // Default selection
@@ -515,8 +663,9 @@ function overpassLayer(request) {
 	});
 }
 
-//***************************************************************
-//***************************************************************
+/**
+ * Vector layers examples
+ */
 function overlaysCollection() {
 	return {
 		//TODO	OverPass: overpassLayer(),
@@ -525,14 +674,89 @@ function overlaysCollection() {
 		WRI: pointsWriLayer()
 	};
 }
-//***************************************************************
-//***************************************************************
+
+/**
+ * Marqueurs
+ * Requires proj4.js for swiss coordinates
+ */
+function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, lat], 'id-display', ['format de base', 'format suisse']
+	var point = new ol.geom.Point(
+			ol.proj.fromLonLat(ll)
+		),
+		iconStyle = new ol.style.Style({
+			image: new ol.style.Icon(({
+				src: imageUrl,
+				anchor: [.5, .5]
+			}))
+		}),
+		iconFeature = new ol.Feature({
+			geometry: point
+		}),
+		layer = new ol.layer.Vector({
+			source: new ol.source.Vector({
+				features: [iconFeature]
+			}),
+			style: iconStyle,
+			zIndex: 1,
+			onAdd: function(map) {
+				if (edit) {
+					// Drag and drop
+					map.addInteraction(new ol.interaction.Modify({
+						features: new ol.Collection([iconFeature]),
+						style: iconStyle,
+						pixelTolerance: 20
+					}));
+					point.on('change', function() {
+						displayLL(this.getCoordinates());
+					});
+				}
+			}
+		});
+
+	// Affiche une coordonnée
+	function displayLL(ll) {
+		var ll4326 = ol.proj.transform(ll, 'EPSG:3857', 'EPSG:4326'),
+			html = format[0],
+			p = [Math.round(ll4326[0] * 100000) / 100000, Math.round(ll4326[1] * 100000) / 100000];
+
+		// Ajout des coordonnées suisses EPSG:21781 (CH1903 / LV03)
+		if (ol.extent.containsCoordinate([664577, 5753148, 1167741, 6075303], ll) && // Si on est dans la zone suisse EPSG:21781
+			format.length >= 2 &&
+			typeof proj4 == 'function') {
+			proj4.defs('EPSG:21781', '+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=600000 +y_0=200000 +ellps=bessel +towgs84=660.077,13.551,369.344,2.484,1.783,2.939,5.66 +units=m +no_defs');
+			var c21781 = ol.proj.transform(ll, 'EPSG:3857', 'EPSG:21781');
+			html += format[1];
+			p.push(Math.round(c21781[0]), Math.round(c21781[1]));
+		}
+
+		// On intégre les coordonnées dans le format html
+		for (var r in p) // === sprinft
+			html = html.replace('{' + r + '}', p[r]);
+
+		// On insère la chaine HTML obtenue à l'endroit qui va bien
+		var llid = document.getElementById(IdDisplay);
+		if (llid)
+			llid.innerHTML = html;
+	}
+
+	// Display coords
+	displayLL(ol.proj.fromLonLat(ll));
+
+	// <input> coords edition
+	layer.edit = function(event, nol, projection) {
+		var coord = ol.proj.transform(point.getCoordinates(), 'EPSG:3857', 'EPSG:' + projection); // La position actuelle du marqueur
+		coord[nol] = parseFloat(event.value); // On change la valeur qui a été modifiée
+		point.setCoordinates(ol.proj.transform(coord, 'EPSG:' + projection, 'EPSG:3857')); // On repositionne le marqueur
+	}
+
+	return layer;
+}
 
 //******************************************************************************
 // CONTROLS
 //******************************************************************************
 /**
- * CONTROL BUTTONS
+ * Control buttons
  * Abstract definition to be used by other control buttons definitions
  *
  * options.invisible {true | false | undefined} add a control button to the map.
@@ -543,7 +767,6 @@ function overlaysCollection() {
  * options.title {string} displayed when the control is hovered.
  * options.render {function} called when the control is rendered.
  * options.action {function} called when the control is clicked.
- * return {ol.control.Control}
  */
 var nextButtonTopPos = 6; // Top position of next button (em)
 //TODO automatiser position des autres boutons
@@ -577,13 +800,10 @@ function controlButton(label, options) {
 }
 
 /**
- * PERMALINK CONTROL
+ * Permalink control
  * options.invisible {true | false | undefined} add a permalink button to the map.
  * options.init {true | false | undefined} use url hash or "permalink" cookie to position the map.
  * url hash or "permalink" cookie {<ZOOM>/<LON>/<LAT>/<LAYER>}
- * return {ol.control.Control} to be added to the map
- *
- * Requires controlButton
  * Must be called before controlLayers
  */
 function permalink(options) {
@@ -615,8 +835,8 @@ function permalink(options) {
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 								inputs[i].value == decodeURI(params[3]);
-					event.map.dispatchEvent('click'); // Simulates a map click to refresh the layer switcher if any
-					view.dispatchEvent('change'); // Simulates a view change to refresh the layers depending on the zoom if any
+					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
 
@@ -643,12 +863,9 @@ function permalink(options) {
 }
 
 /**
- * LAYER SWITCHER CONTROL
+ * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
- * return {ol.control.Control} to be added to the map
- *
- * Requires controlButton
  * Must be called after permalink
  */
 function controlLayers(baseLayers, overLayers) {
@@ -731,7 +948,7 @@ function controlLayers(baseLayers, overLayers) {
 	var currentBaseLayerName = Object.keys(baseLayers)[0], // Le nom de la précédente couche affichée. Par défaut la premiere
 		checkedBaseLayers = []; // Les layers sélectionnés (dans l'ordre de baseLayers)
 
-	// Click sur une coche
+	// Click on a check mark
 	function checkLayer(event) {
 		var selectorInputs = selectorElement.getElementsByTagName('input');
 		checkedBaseLayers = [];
@@ -772,10 +989,7 @@ function controlLayers(baseLayers, overLayers) {
 }
 
 /**
- * GPS CONTROL
- * return {ol.control.Control} to be added to the map
- *
- * Requires controlButton
+ * GPS control
  */
 function buttonGPS() {
 	// Le marqueur de la position
@@ -787,7 +1001,7 @@ function buttonGPS() {
 		}),
 		style_ = new ol.style.Style({
 			image: new ol.style.Icon({
-				anchor: [.5, .5],
+				anchor: [.5, .5], // Picto de marquage de la position sur la carte
 				src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAA7VBMVEUAAAA/X39UVHFMZn9NXnRPX3RMW3VPXXNOXHJOXXNNXHNOXXFPXHNNXXFPXHFOW3NPXHNPXXJPXXFPXXNNXXFNW3NOXHJPW25PXXNRX3NSYHVSYHZ0fIx1fo13gI95hJR6go96g5B7hpZ8hZV9hpZ9h5d/iZiBi5ucoquepa+fpbGhqbSiqbXNbm7Ob2/OcHDOcXHOcnLPdHTQdXXWiIjXiorXjIzenp7eoKDgpKTgpaXgpqbks7TktLTktbXnubnr2drr5+nr6Ons29vs29zs6Ors6ert6uvt6uzu6uz18fH18fL68PD++/v+/Pw8gTaQAAAAFnRSTlMACAkKLjAylJWWmJmdv8HD19ja2/n6GaRWtgAAAMxJREFUGBkFwctqwkAUgOH/nMnVzuDGFhRKKVjf/226cKWbQgNVkphMzFz6fQJQlY0S/boCAqa1AMAwJwRjW4wtcxgS05gEa3HHOYipzxP9ZKot9tR5ZfIff7FetMQcf4tDVexNd1IKbbA+7S59f9mlZGmMVVdpXN+3gwh+RiGLAjkDGTQSjHfhes3OV0+CkXrdL/4gzVunxQ+DYZNvn+Mg6aav35GH8OJS/SUrVTw/9e4FtRvypsbPwmPMAto6AOC+ZASgLBpDmGMA/gHW2Vtk8HXNjQAAAABJRU5ErkJggg=='
 			})
 		}),
@@ -826,418 +1040,102 @@ function buttonGPS() {
 	return bouton;
 }
 
-//***************************************************************
-// TILE LAYERS
-//***************************************************************
-
 /**
- * OPENSTREETMAP LAYERS
- * url {string} location of the tiles.
- * attribution {string}.
- * return {ol.layer} to be added to the map
- *
- * EXAMPLES
- * OSMlayer('OSM', '//{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
- * OSMlayer('OSM-FR', '//{a-c}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'),
- * OSMlayer('MRI', '//maps.refuges.info/hiking/{z}/{x}/{y}.png', '<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'),
+ * Contrôle qui affiche la longueur d'une ligne survolée
  */
-function OSMlayer(url, attribution) {
-	return new ol.layer.Tile({
-		source: new ol.source.XYZ({
-			url: url,
-			attributions: [
-				attribution || '',
-				ol.source.OSM.ATTRIBUTION
-			]
-		})
-	});
-}
+ol.control.LengthLine = function(opt_options) {
+	var options = opt_options ? opt_options : {};
+	options.className = 'ol-length-line';
+	ol.control.MousePosition.call(this, options); //HACK reuse of an existing control
+};
+ol.inherits(ol.control.LengthLine, ol.control.MousePosition);
+ol.control.LengthLine.prototype.updateHTML_ = function() {}; // Inhibe l'affichage de MousePosition
 
-/**
- * KOMPAS LAYERS (AUSTRIA)
- * url {string} location of the tiles.
- * attribution {string}.
- * return {ol.layer} to be added to the map
- *
- *  Requires OSMlayer
- *
- * EXAMPLES
- *  kompassLayer('Kompas', 'KOMPASS')
- *  kompassLayer('Kompas touristik', 'KOMPASS Touristik')
- *  kompassLayer('Kompas summer', 'Summer OSM')
- *  kompassLayer('Kompas winter', 'Winter OSM')
- *  kompassLayer('Kompas luftbild', 'a') // ????
- */
-function kompassLayer(layer) {
-	return OSMlayer(
-		'http://ec{0-3}.cdn.ecmaps.de/WmsGateway.ashx.jpg?' + // Not available via https
-		'Experience=ecmaps&MapStyle=' + layer + '&TileX={x}&TileY={y}&ZoomLevel={z}',
-		'<a href="http://www.kompass.de/livemap/">KOMPASS</a>'
-	);
-}
+ol.control.LengthLine.prototype.setMap = function(map) {
+	ol.control.MousePosition.prototype.setMap.call(this, map); //HACK
+	var element = this.element;
 
-/**
- * CARTES THUNDERFOREST
- * layer {string} part of location of the tiles.
- * key {string} to be obtained from https://manage.thunderforest.com
- * return {ol.layer} to be added to the map
- *
- *  Requires OSMlayer
- *
- * EXAMPLES
- * thunderforestLayer('OSM-outdoors', 'outdoors', thunderforestKey)
- * thunderforestLayer('OSM-cycle', 'cycle', thunderforestKey)
- * thunderforestLayer('OSM-landscape', 'landscape', thunderforestKey)
- * thunderforestLayer('OSM-transport', 'transport', thunderforestKey)
- */
-function thunderforestLayer(layer, key) {
-	return OSMlayer(
-		'//{a-c}.tile.thunderforest.com/' + layer + '/{z}/{x}/{y}.png?apikey=' + key,
-		'<a href="http://www.thunderforest.com">Thunderforest</a>'
-	);
-}
+	element.innerHTML = null;
+	if (map) {
+		var mip = new ol.interaction.Select({
+			condition: ol.events.condition.pointerMove,
+			hitTolerance: 3,
+			filter: function(f) { //HACK
+				var length = ol.Sphere.getLength(f.getGeometry());
+				if (length >= 100000)
+					element.innerHTML = (Math.round(length / 1000)) + ' km';
+				else if (length >= 10000)
+					element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+				else if (length >= 1000)
+					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+				else if (length >= 1)
+					element.innerHTML = (Math.round(length)) + ' m';
 
-//TODO reprendre entête docs
-//***************************************************************
-// GOOGLE
-// No key / no api
-//
-// googleLayer('Google road', 'm')
-// googleLayer('Google terrain', 'p')
-// googleLayer('Google satellite', 's')
-// googleLayer('Google hybrid', 's,h')
-//***************************************************************
-function googleLayer(layer) {
-	return new ol.layer.Tile({
-		source: new ol.source.XYZ({
-			url: '//mt{0-3}.google.com/vt/lyrs=' + layer + '&x={x}&y={y}&z={z}',
-			attributions: '<a href="https://www.google.com/maps">Google</a>'
-		})
-	});
-}
-
-//***************************************************************
-// STAMEN
-// http://maps.stamen.com
-//
-// stamenLayer('terrain')
-// stamenLayer('watercolor')
-//***************************************************************
-function stamenLayer(layer) {
-	return new ol.layer.Tile({
-		source: new ol.source.Stamen({
-		layer: layer
-	})});
-}
-
-//***************************************************************
-// IGN
-// key: http://professionnels.ign.fr
-// doc: http://api.ign.fr
-//
-// ignLayer('IGN', IGNkey, 'GEOGRAPHICALGRIDSYSTEMS.MAPS')
-// ignLayer('IGN photos', IGNkey, 'ORTHOIMAGERY.ORTHOPHOTOS')
-// ignLayer('IGN TOP 25', IGNkey, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD')
-// ignLayer('IGN classique', IGNkey, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.CLASSIQUE')
-// ignLayer('IGN avalanches', IGNkey,'GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN')
-// ignLayer('Cadastre', IGNkey,' CADASTRALPARCELS.PARCELS', 'image/png')
-//***************************************************************
-function ignLayer(key, layer, format) {
-	var IGNresolutions = [],
-		IGNmatrixIds = [];
-	for (var i = 0; i < 18; i++) {
-		IGNresolutions[i] = ol.extent.getWidth(ol.proj.get('EPSG:3857').getExtent()) / 256 / Math.pow(2, i);
-		IGNmatrixIds[i] = i.toString();
-	}
-	var IGNtileGrid = new ol.tilegrid.WMTS({
-		origin: [-20037508, 20037508],
-		resolutions: IGNresolutions,
-		matrixIds: IGNmatrixIds
-	});
-
-	return new ol.layer.Tile({
-		source: new ol.source.WMTS({
-			url: '//wxs.ign.fr/' + key + '/wmts',
-			layer: layer,
-			matrixSet: 'PM',
-			format: format || 'image/jpeg',
-			tileGrid: IGNtileGrid,
-			style: 'normal',
-			attributions:
-				'<a href="http://www.geoportail.fr/" target="_blank">' +
-				'<img src="https://api.ign.fr/geoportail/api/js/latest/theme/geoportal/img/logo_gp.gif"></a>'
-		})
-	});
-}
-
-//***************************************************************
-// TRAITEMENT DES CARTES INCOMPLETES
-//
-// Arg: extent: [<4 numbers>] : valid area
-// Arg: source: {
-//	<max resolution>: <source>,
-//	...
-// }
-//
-// En dehors de la zone de zoom, affiche OSM
-// En dehors de la zone de validité, affiche blanc
-
-// Requires ol.layer onAdd option
-//***************************************************************
-function incompleteTileLayer(extent, sources) {
-	var map, view,
-		layer = new ol.layer.Tile({
-			onAdd: function(m) {
-				map = m;
-				view = map.getView();
-				view.on('change', change);
-				change(); // At init
-			}
-		}),
-		backgroundSource = new ol.source.Stamen({
-			layer: 'terrain'
-		});
-
-	// Zoom has changed
-	function change() {
-		var resolution = 999999; // Max resolution
-		sources[resolution] = backgroundSource; // Add extrabound source on the top of the list
-
-		// Search for sources according to the map resolution
-		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).find(function(e) { //TODO : IE ne gére pas find
-				return e > view.getResolution();
-			});
-
-		// Update layer if necessary
-		if (layer.getSource() != sources[resolution])
-			layer.setSource(sources[resolution]);
-	}
-
-	return layer;
-}
-
-//***************************************************************
-// SWISSTOPO
-// doc: https://api.geo.admin.ch/
-// register your domain: https://shop.swisstopo.admin.ch/fr/products/geoservice/swisstopo_geoservices/WMTS_info
-//
-// swissLayer('Swiss','ch.swisstopo.pixelkarte-farbe')
-// swissLayer('Swiss photo','ch.swisstopo.swissimage')
-
-// Requires incompleteTileLayer
-//***************************************************************
-function swissLayer(layer) {
-	var projectionExtent = ol.proj.get('EPSG:3857').getExtent(),
-		resolutions = [],
-		matrixIds = [];
-	for (var r = 0; r < 18; ++r) {
-		resolutions[r] = ol.extent.getWidth(projectionExtent) / 256 / Math.pow(2, r);
-		matrixIds[r] = r;
-	}
-	var tileGrid = new ol.tilegrid.WMTS({
-		origin: ol.extent.getTopLeft(projectionExtent),
-		resolutions: resolutions,
-		matrixIds: matrixIds
-	});
-
-	return incompleteTileLayer([664577, 5753148, 1167741, 6075303], {
-		500: new ol.source.WMTS(({
-			crossOrigin: 'anonymous',
-			url: '//wmts2{0-4}.geo.admin.ch/1.0.0/' + layer + '/default/current/3857/{TileMatrix}/{TileCol}/{TileRow}.jpeg',
-			tileGrid: tileGrid,
-			requestEncoding: 'REST',
-			attributions: '<a href="https://map.geo.admin.ch/">SwissTopo</a>'
-		}))
-	});
-}
-
-//***************************************************************
-// ITALY IGM
-
-// Requires incompleteTileLayer
-//***************************************************************
-function igmLayer() {
-	function igmSource(url, layer) {
-		return new ol.source.TileWMS({
-			url: 'http://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/raster/' + url + '.map',
-			params: {
-				layers: layer
-			},
-			attributions: '<a href="http://www.pcn.minambiente.it/viewer">IGM</a>'
-		})
-	}
-
-	return incompleteTileLayer([660124, 4131313, 2113957, 5958411], { // EPSG:6875 (Italie)
-		100: igmSource('IGM_250000', 'CB.IGM250000'),
-		25: igmSource('IGM_100000', 'MB.IGM100000'),
-		5: igmSource('IGM_25000', 'CB.IGM25000')
-	});
-}
-//***************************************************************
-// SPAIN
-//
-// spainLayer('Espagne', 'mapa-raster', 'MTN')
-// spainLayer('Espagne photo', 'pnoa-ma', 'OI.OrthoimageCoverage')
-//***************************************************************
-function spainLayer(serveur, layer) {
-	return new ol.layer.Tile({
-		source: new ol.source.XYZ({
-			url: '//www.ign.es/wmts/' + serveur + '?layer=' + layer +
-				'&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/jpeg' +
-				'&style=default&tilematrixset=GoogleMapsCompatible' +
-				'&TileMatrix={z}&TileCol={x}&TileRow={y}',
-			attributions: '<a href="http://www.ign.es/">IGN España</a>'
-		})
-	});
-}
-
-//***************************************************************
-// BING (Microsoft)
-// key : https://msdn.microsoft.com/fr-fr/library/ff428642.aspx
-//
-// bingLayer ('Bing', 'Road', bingKey)
-// bingLayer ('Bing photo', 'Aerial', bingKey)
-// bingLayer ('Bing mixte', 'AerialWithLabels', bingKey)
-// bingLayer ('Ordnance Survey', 'ordnanceSurvey', bingKey) // UK
-//***************************************************************
-function bingLayer(layer, key) {
-	return new ol.layer.Tile({
-		source: new ol.source.BingMaps({
-			imagerySet: layer,
-			key: key,
-		})
-	});
-}
-
-//***************************************************************
-// Ordnance Survey : Great Britain map
-
-// Requires incompleteTileLayer
-//TODO : attribution : Ordnance Survey
-//***************************************************************
-function osLayer(key) {
-	return incompleteTileLayer([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
-		100: new ol.source.BingMaps({
-			imagerySet: 'ordnanceSurvey',
-			key: key
-		})
-	});
-}
-
-//***************************************************************
-//***************************************************************
-function layersCollection(keys) {
-	return {
-		'OSM-FR': OSMlayer('//{a-c}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'),
-		'OSM': OSMlayer('//{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-		'MRI': OSMlayer('//maps.refuges.info/hiking/{z}/{x}/{y}.png', '<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'),
-		'Hike & Bike': OSMlayer('http://{a-c}.tiles.wmflabs.org/hikebike/{z}/{x}/{y}.png', '<a href="http://www.hikebikemap.org/">hikebikemap.org</a>'), // Not on https
-		'Autriche': kompassLayer('KOMPASS Touristik'),
-		'OSM-outdoors': thunderforestLayer('outdoors', keys.thunderforest),
-		'OSM-cycle': thunderforestLayer('cycle', keys.thunderforest),
-		'OSM-landscape': thunderforestLayer('landscape', keys.thunderforest),
-		'OSM-transport': thunderforestLayer('transport', keys.thunderforest),
-		'IGN': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS'),
-		'IGN photos': ignLayer(keys.IGN, 'ORTHOIMAGERY.ORTHOPHOTOS'),
-		'IGN TOP 25': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD'),
-		'IGN classique': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.CLASSIQUE'),
-		// NOT YET	ignLayer('IGN avalanches', keys.IGN,'GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN'),
-		'Cadastre': ignLayer(keys.IGN, 'CADASTRALPARCELS.PARCELS', 'image/png'),
-		'Swiss': swissLayer('ch.swisstopo.pixelkarte-farbe'),
-		'Swiss photo': swissLayer('ch.swisstopo.swissimage'),
-		'Espagne': spainLayer('mapa-raster', 'MTN'),
-		'Espagne photo': spainLayer('pnoa-ma', 'OI.OrthoimageCoverage'),
-		'Italie': igmLayer(),
-		'Angleterre': osLayer(keys.bing),
-		'Bing': bingLayer('Road', keys.bing),
-		'Bing photo': bingLayer('Aerial', keys.bing),
-		'Google road': googleLayer('m'),
-		'Google terrain': googleLayer('p'),
-		'Google photo': googleLayer('s'),
-		'Google hybrid': googleLayer('s,h'),
-		Stamen: stamenLayer('terrain'),
-		Watercolor: stamenLayer('watercolor'),
-		'Neutre': new ol.layer.Tile()
-	};
-}
-//***************************************************************
-// MARQUEURS
-
-// Requires proj4.js for swiss coordinates
-// Requires ol.layer onAdd option
-//***************************************************************
-function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, lat], 'id-display', ['format de base', 'format suisse']
-	var point = new ol.geom.Point(
-			ol.proj.fromLonLat(ll)
-		),
-		iconStyle = new ol.style.Style({
-			image: new ol.style.Icon(({
-				src: imageUrl,
-				anchor: [.5, .5]
-			}))
-		}),
-		iconFeature = new ol.Feature({
-			geometry: point
-		}),
-		layer = new ol.layer.Vector({
-			source: new ol.source.Vector({
-				features: [iconFeature]
-			}),
-			style: iconStyle,
-			zIndex: 1,
-			onAdd: function(map) {
-				if (edit) {
-					// Drag and drop
-					map.addInteraction(new ol.interaction.Modify({
-						features: new ol.Collection([iconFeature]),
-						style: iconStyle,
-						pixelTolerance: 20
-					}));
-					point.on('change', function() {
-						displayLL(this.getCoordinates());
-					});
-				}
+				return length; // Continue hover if line
 			}
 		});
+		map.addInteraction(mip);
 
-	// Affiche une coordonnée
-	function displayLL(ll) {
-		var ll4326 = ol.proj.transform(ll, 'EPSG:3857', 'EPSG:4326'),
-			html = format[0],
-			p = [Math.round(ll4326[0] * 100000) / 100000, Math.round(ll4326[1] * 100000) / 100000];
-
-		// Ajout des coordonnées suisses EPSG:21781 (CH1903 / LV03)
-		if (ol.extent.containsCoordinate([664577, 5753148, 1167741, 6075303], ll) && // Si on est dans la zone suisse EPSG:21781
-			format.length >= 2 &&
-			typeof proj4 == 'function') {
-			proj4.defs('EPSG:21781', '+proj=somerc +lat_0=46.95240555555556 +lon_0=7.439583333333333 +k_0=1 +x_0=600000 +y_0=200000 +ellps=bessel +towgs84=660.077,13.551,369.344,2.484,1.783,2.939,5.66 +units=m +no_defs');
-			var c21781 = ol.proj.transform(ll, 'EPSG:3857', 'EPSG:21781');
-			html += format[1];
-			p.push(Math.round(c21781[0]), Math.round(c21781[1]));
-		}
-
-		// On intégre les coordonnées dans le format html
-		for (var r in p) // === sprinft
-			html = html.replace('{' + r + '}', p[r]);
-
-		// On insère la chaine HTML obtenue à l'endroit qui va bien
-		var llid = document.getElementById(IdDisplay);
-		if (llid)
-			llid.innerHTML = html;
+		// Get back the basic pointer when move out from the feature
+		var mip2 = new ol.interaction.Select({
+			condition: ol.events.condition.pointerMove,
+			hitTolerance: 8,
+			filter: function(f) {
+				return ol.Sphere.getLength(f.getGeometry()) > 0; // Uniquement les lignes
+			}
+		});
+		ol.events.listen(
+			mip2.getFeatures(),
+			ol.CollectionEventType.REMOVE,
+			function() {
+				element.innerHTML = null;
+			}
+		);
+		map.addInteraction(mip2);
 	}
+};
 
-	// Display coords
-	displayLL(ol.proj.fromLonLat(ll));
-
-	// <input> coords edition
-	layer.edit = function(event, nol, projection) {
-		var coord = ol.proj.transform(point.getCoordinates(), 'EPSG:3857', 'EPSG:' + projection); // La position actuelle du marqueur
-		coord[nol] = parseFloat(event.value); // On change la valeur qui a été modifiée
-		point.setCoordinates(ol.proj.transform(coord, 'EPSG:' + projection, 'EPSG:3857')); // On repositionne le marqueur
-	}
-
-	return layer;
+/**
+ * Controls examples
+ */
+function controlsCollection() {
+	return [
+		new ol.control.Zoom(),
+		new ol.control.Attribution({
+			collapsible: false // Attribution toujours ouverte
+		}),
+//TODO fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
+//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
+		new ol.control.FullScreen({
+			label: '\u21d4',
+			labelActive: '\u21ce',
+			tipLabel: 'Plein écran'
+		}),
+		new ol.control.ScaleLine(),
+		new ol.control.LengthLine(),
+		new ol.control.MousePosition({
+			coordinateFormat: ol.coordinate.createStringXY(5),
+			projection: 'EPSG:4326',
+			className: 'ol-coordinate'
+		}),
+		permalink({
+			init: true,
+			invisible: false
+		}),
+		// https://github.com/jonataswalker/ol-geocoder
+		new Geocoder('nominatim', {
+			provider: 'osm',
+			lang: 'FR',
+			placeholder: 'Recherche par nom' // Initialisation du champ de saisie
+		}),
+		buttonGPS(),
+		controlButton('&equiv;', {
+			title: 'Imprimer la carte',
+			action: function() {
+				window.print();
+			}
+		})
+	];
 }
 
 /**
@@ -1245,15 +1143,14 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
  */
 function editorButton(id, snapLayers) {
 	var map,
-		el = document.getElementById(id), // L'élement <textarea>
+		// Reading data
+		el = document.getElementById(id), // <textarea> element
 		format = new ol.format.GeoJSON(),
-		// Lecture des données
-		features = format.readFeatures( // Lit par défaut les données en ESPG:4326
+		features = format.readFeatures(
 			JSON.parse(el.textContent), {
-				featureProjection: 'EPSG:3857' // La projection suivant laquelle readFeatures restitue les données !
+				featureProjection: 'EPSG:3857' // Reads/writes data as ESPG:4326 by default
 			}
 		),
-		// Déclaration de la couche à éditer
 		source = new ol.source.Vector({
 			features: features,
 			wrapX: false
@@ -1262,108 +1159,166 @@ function editorButton(id, snapLayers) {
 			source: source,
 			zIndex: 1
 		}),
-		// Les interactions
-		drawInteraction = new ol.interaction.Draw({
-			source: source,
-			type: 'LineString'
-		}),
-		//TODO : snap sur son propre segment !!!
-		//TODO : snap pendant la création !!!
-		snapInteraction = new ol.interaction.Snap({
-			source: source,
-			pixelTolerance: 5
-		}),
-		hoverInteraction = new ol.interaction.Select({
-			layers: [layer],
-			condition: ol.events.condition.always,
-			hitTolerance: 5
-		}),
-		modifyInteraction = new ol.interaction.Modify({
-			source: source
-		}),
-		removeInteraction = new ol.interaction.Select({
-			layers: [layer],
-			hitTolerance: 5,
-			condition: function(event) {
-				// Un click supprime les features pointés
-				if (event.type == 'pointerdown') {
-					var features = this.getFeatures();
-					for (var i = 0, f; f = features.item(i); i++)
-						source.removeFeature(f);
-					features.clear();
-				}
-				return true; // Continue les actions (hover, ...)
+		interactions = {
+			hover: new ol.interaction.Select({
+				layers: [layer],
+				condition: ol.events.condition.always,
+				hitTolerance: 5
+			}),
+			//TODO : snap sur son propre segment !!!
+			//TODO : snap pendant la création !!!
+			snap: new ol.interaction.Snap({
+				source: source,
+				pixelTolerance: 5
+			}),
+			modify: new ol.interaction.Modify({
+				source: source
+			}),
+			draw: new ol.interaction.Draw({
+				source: source,
+				type: 'LineString'
+			})
+		}
+	//TODO conditionnel à question ???		map.addInteraction(removeInteraction);
+	/*
+	removeInteraction = new ol.interaction.Select({
+		layers: [layer],
+		hitTolerance: 5,
+		condition: function(event) {
+			// Un click supprime les features pointés
+			if (event.type == 'pointerdown') {
+				var features = this.getFeatures();
+				for (var i = 0, f; f = features.item(i); i++)
+					source.removeFeature(f);
+				features.clear();
 			}
-		}),
-		actif = false,
+			return true; // Continue les actions (hover, ...)
+		}
+	}),*/
+	editMode = true, // Versus false if insert line mode
 		bouton = controlButton('E', {
 			title: "Editeur de lignes\n" +
-				"Click sur E pour ajouter une ligne\n" +
+				"Click sur E pour ajouter ou étendre une ligne, doubleclick pour finir\n" +
 				"Click sur un sommet puis déplacer pour modifier\n" +
 				"Click sur une ligne puis déplacer pour créer un sommet\n" +
 				"Alt+click sur un sommet ou un segment pour le supprimer" +
 				"Alt+click sur une ligne pour la supprimer",
 			action: function() {
-				active(actif ^= 1); // Bascule on/off
+				setMode(editMode ^= 1); // Alternately switch modes
 			}
 		});
 
 	bouton.setMap = function(m) {
-		ol.control.Control.prototype.setMap.call(this, m);
+		ol.control.Control.prototype.setMap.call(this, m); //HACK
 		map = m;
 		map.addLayer(layer);
-
-		// Intéractions initiales
-		map.addInteraction(modifyInteraction);
-		if (!document.getElementsByClassName('ol-length-line').length)
-			map.addInteraction(hoverInteraction); // Bloque le zoom si en double avec ol.control.LengthLine !!!
-		map.getInteractions().getArray().forEach(function(i) { // Evite de zoomer quand on sort du mode par doubleclick
+		//HACK Avoid zooming when you leave the mode by doubleclick
+		map.getInteractions().getArray().forEach(function(i) {
 			if (i instanceof ol.interaction.DoubleClickZoom)
 				map.removeInteraction(i);
 		});
 
-		// Snap sur des sources extèrieures à l'éditeur
-		if (snapLayers) {
+		// Snap on features external to the editor
+		if (snapLayers)
 			//TODO		for (var s = 0; s < snapLayers.length; s++)
 			for (var s in snapLayers)
 				snapLayers[s].getSource().on('change', function() {
 					this.forEachFeature(
 						function(f) {
-							snapInteraction.addFeature(f);
+							interactions.snap.addFeature(f);
 						}
 					);
 				});
-			map.addInteraction(snapInteraction);
-		}
+		/*
+		//HACK Often reselect modify interaction because it doesn't remove summits at the init !!
+				map.addInteraction(new ol.interaction.Select({
+					condition: ol.events.condition.pointerMove,
+					hitTolerance: 8,
+					filter: function() {
+						map.removeInteraction(interactions.modify);
+						map.addInteraction(interactions.modify);
+						map.removeInteraction(interactions.snap);
+						map.addInteraction(interactions.snap);
+					}
+				}));*/
+		setMode(true); // Edit mode by default
 	}
 
-	function active(a) {
-		actif = a;
-		if (a) {
-			bouton.element.firstChild.style.color = 'black'; // Colore le bouton
-			bouton.element.firstChild.innerHTML = '+'; // Colore le bouton
-			map.removeInteraction(modifyInteraction);
-			map.addInteraction(drawInteraction);
-			map.addInteraction(snapInteraction);
-		} else {
-			bouton.element.firstChild.style.color = 'white';
-			bouton.element.firstChild.innerHTML = 'E'; // Colore le bouton
-			map.removeInteraction(drawInteraction);
-			map.addInteraction(modifyInteraction);
-			map.addInteraction(snapInteraction);
+	function setMode(a) {
+		editMode = a;
+		bouton.element.firstChild.style.color = editMode ? 'white' : 'black';
+		bouton.element.firstChild.innerHTML = editMode ? 'E' : '+';
+		// Remove all interactions
+		for (var i in interactions)
+			map.removeInteraction(interactions[i]);
+
+		if (editMode) {
+			map.addInteraction(interactions.modify); //TODO bug : doesn't remove summits at the init !! 
+			//HACK interactions.hover blocks the zoom if in duplicate with ol.control.LengthLine !!!
+			if (!document.getElementsByClassName('ol-length-line').length)
+				map.addInteraction(interactions.hover);
+		} else { // Insert new line mode
+			map.addInteraction(interactions.draw);
 		}
+		// Common interactions
+		map.addInteraction(interactions.snap);
 	}
 
-	drawInteraction.on(['drawend'], function(e) {
-		active(false); // On referme le mode création de ligne
+	interactions.draw.on(['drawend'], function(e) {
+		setMode(true); // On referme le mode création de ligne
 	});
 	source.on(['change'], function() {
 		//TODO		stickLines();
-		// Sauver les lignes dans <EL> sous forme geoJSON à chaque modif
+		// Save lines in <EL> as geoJSON at every change
 		el.textContent = format.writeFeatures(source.getFeatures(), {
-			featureProjection: 'EPSG:3857' // La projection des données internes
+			featureProjection: 'EPSG:3857'
 		});
 	});
+
+
+
+	//////////////////////////////////////////////////
+	// Supprime un segment et coupe une ligne en 2
+	interactions.modify.on('modifyend', function(event) {
+		if (ol.events.condition.altKeyOnly(event.mapBrowserEvent) &&
+			event.mapBrowserEvent.type == 'pointerup') {
+			// On récupère la liste des features visés
+			var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
+				hitTolerance: 5
+			});
+
+			/*
+						// En théorie, on doit sélectionner au moins 2 features :
+						if (features.length > 1) {
+							var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
+								c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
+								cs = [[],[]], // Les coordonnées des 2 segments découpés
+								s = 0;
+							for (i = 0; i < c1.length / 2; i++)
+								// Si on a trouvé le point de coupure, on le saute et on incrémente le compteur de segment
+								if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
+									s++;
+								else // On ajoute le point courant
+									cs[s].push([c1[2 * i], c1[2 * i + 1]]);
+
+							// On enlève la ligne existante
+							source.removeFeature(features[1]);
+
+							// On dessine les 2 lines de lignes
+			//TODO				for (var f = 0; f < cs.length; f++)
+							for (var f in cs)
+								if (cs[f].length > 1) // s'ils ont au moins 2 points
+									source.addFeature(new ol.Feature({
+										geometry: new ol.geom.LineString(cs[f])
+									}));
+						}
+			*/
+		}
+	});
+	//////////////////////////////////////////////////
+
+
+
 
 	return bouton;
 }
