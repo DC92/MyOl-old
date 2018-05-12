@@ -33,36 +33,33 @@
 			"type": "FeatureCollection",
 			"features": [{
 				"type": "Feature",
-				"geometry": {"type":"MultiLineString","coordinates":[[[-4.35022,47.78254],[-4.3667,47.78992],[-4.32825,47.86368],[-4.47656,47.9778],[-4.72375,48.06965],[-4.31177,48.12101],[-4.26782,48.18332],[-4.56445,48.20163],[-4.63586,48.29308],[-4.23486,48.33326],[-4.49304,48.38436],[-4.86383,48.3111],[-4.84186,48.59164],[-4.46008,48.63546],[-4.00964,48.71164],[-3.76245,48.70439],[-3.57019,48.67901],[-3.58118,48.83834],[-3.14172,48.86364],[-2.6803,48.5228],[-2.79565,47.57172],[-3.13623,47.58284],[-3.66357,47.78992],[-4.14697,47.76408],[-4.35022,47.78254]]]}
+				"geometry": {"type":"MultiLineString","coordinates":[[[-4.35022,47.78254],[-4.3667,47.78992],[-4.32825,47.86368],[-4.47656,47.9778],[-4.72375,48.06965],[-4.31177,48.12101],[-4.26782,48.18332],[-4.56445,48.20163],[-4.63586,48.29308],[-4.23486,48.33326],[-4.49304,48.38436],[-4.86383,48.3111],[-4.84186,48.59164],[-4.46008,48.63546],[-4.00964,48.71164],[-3.76245,48.70439],[-3.57019,48.67901],[-3.58118,48.83834],[-3.14172,48.86364],[-2.6803,48.5228],[-2.79565,47.57172],[-3.13623,47.58284],[-3.66357,47.78992],[-4.14697,47.76408],[-4.35022,47.78254]],[[-5.7,48],[-5.6,47.7],[-5.1,47.8]]]}
 			}]
 		}
 	</textarea>
 
 	<script>
-		var map = new ol.Map({
-			target: 'map',
-			//	loadTilesWhileInteracting: true,
-			controls: controlsCollection(),
-			view: new ol.View({
-				//center: ol.proj.fromLonLat([-3.5, 48.25]), // France
-				center: ol.proj.fromLonLat([7, 47]), // Suisse
-				//center: ol.proj.fromLonLat([9.2, 45.5]), // Milan
-				//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
-				//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
-				zoom: 8
-			})
-		});
-		map.addControl(
-			controlLayers(
-				layersCollection({
-					IGN: 'o6owv8ubhn3vbz2uj8jq5j0z', // localhost
-					//	IGN: 'hcxdz5f1p9emo4i1lch6ennl', // chemineur.fr
-					thunderforest: 'a54d38a8b23f435fa08cfb1d0d0b266e', // https://manage.thunderforest.com
-					bing: 'ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt',
-				}),
-				overlaysCollection()
-			)
-		);
+		var layers = layersCollection({
+				IGN: 'o6owv8ubhn3vbz2uj8jq5j0z', // localhost
+				//	IGN: 'hcxdz5f1p9emo4i1lch6ennl', // chemineur.fr
+				thunderforest: 'a54d38a8b23f435fa08cfb1d0d0b266e', // https://manage.thunderforest.com
+				bing: 'ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt',
+			}),
+			map = new ol.Map({
+				target: 'map',
+				//	loadTilesWhileInteracting: true,
+				controls: controlsCollection(),
+				view: new ol.View({
+					//center: ol.proj.fromLonLat([-3.5, 48.25]), // France
+					center: ol.proj.fromLonLat([7, 47]), // Suisse
+					//center: ol.proj.fromLonLat([9.2, 45.5]), // Milan
+					//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
+					//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
+					zoom: 8
+				})
+			}),
+			overlays = overlaysCollection();
+		map.addControl(controlLayers(layers, overlays));
 		map.addLayer(marqueur('images/cadre.png', [-.575, 44.845], 'lonlat', ['Lon {0}, Lat {1}', '<br/>X {2}, Y {3} (CH1903)']));
 		map.addLayer(marqueur('images/viseur.png', [6.15, 46.2], 'edit-lonlat', [
 			'Lon <input type="text" onchange="viseur.edit(this,0,4326)" size="12" maxlength="12" value="{0}"/>' +
@@ -70,8 +67,7 @@
 			'<br/>X <input type="text" onchange="viseur.edit(this,0,21781)" size="12" maxlength="12" value="{2}"/>' +
 			'<br/>Y <input type="text" onchange="viseur.edit(this,1,21781)" size="12" maxlength="12" value="{3}"/>'
 		], 'edit'));
-		//map.addLayer(lineEditor('geojson', [overLayers.Massifs]));
-		map.addLayer(lineEditor('geojson'));
+		map.addControl(editorButton('geojson', overlays));
 	</script>
 </body>
 </html>

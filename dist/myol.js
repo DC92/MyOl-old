@@ -6,6 +6,7 @@
 // Each feature is included in a single function that you can include separately
 //******************************************************************************
 
+//TODO reprendre commentaires
 //TODO Voir traffic réseau (autre couche = ord survey ??)
 //TODO mobiles ! boutons trop grand ou trop pres
 //TODO https
@@ -18,11 +19,6 @@
 //TODO Superzoom
 //TODO Harmoniser buttonXxxx yyyElement ...
 //TODO Site off line, application
-
-//TODO REWRITE
-//	https://github.com/JefferyHus/es6-crawler-detect/tree/master/dist
-//	Line 85291:     ol.layer.Layer.prototype.setMap);
-//	Line 32617: ol.Overlay.prototype.setMap = function(map) {
 
 /**
  * ol.layer options
@@ -40,6 +36,8 @@ var formerLayerBase = ol.layer.Base;
 ol.layer.Base = function(options) { // Overwrite ol.layer
 	formerLayerBase.call(this, options); // Call former method
 
+//TODO	Line 32617: ol.Overlay.prototype.setMap = function(map) {
+//TODO	Line 85291: ol.layer.Layer.prototype.setMap);
 	this.onAdd_ = function(map) { // Private function called by ol.Map.addLayer
 		// onAdd layer option
 		if (typeof options.onAdd == 'function')
@@ -83,7 +81,7 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 };
 
 /**
- * Contrôle ui affiche la longueur d'une ligne survolée
+ * Contrôle qui affiche la longueur d'une ligne survolée
  */
 ol.control.LengthLine = function(opt_options) {
 	var options = opt_options ? opt_options : {};
@@ -138,14 +136,14 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 };
 
 //***************************************************************
-//TODO fullscreen / pas toute la page ! / les icones ne sont pas ou est le hover
 function controlsCollection() {
 	return [
 		new ol.control.Zoom(),
 		new ol.control.Attribution({
 			collapsible: false // Attribution toujours ouverte
 		}),
-		//TBD BUG full screen limité en hauteur (chrome, mobile, ...)
+//TODO fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
+//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
 		new ol.control.FullScreen({
 			label: '\u21d4',
 			labelActive: '\u21ce',
@@ -548,6 +546,7 @@ function overlaysCollection() {
  * return {ol.control.Control}
  */
 var nextButtonTopPos = 6; // Top position of next button (em)
+//TODO automatiser position des autres boutons
 
 function controlButton(label, options) {
 	var button = document.createElement('button');
@@ -779,7 +778,7 @@ function controlLayers(baseLayers, overLayers) {
  * Requires controlButton
  */
 function buttonGPS() {
-	// Le viseur
+	// Le marqueur de la position
 	var point_ = new ol.geom.Point([0, 0]),
 		source_ = new ol.source.Vector({
 			features: [new ol.Feature({
@@ -787,10 +786,10 @@ function buttonGPS() {
 			})]
 		}),
 		style_ = new ol.style.Style({
-			image: new ol.style.Icon(({
+			image: new ol.style.Icon({
 				anchor: [.5, .5],
 				src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAA7VBMVEUAAAA/X39UVHFMZn9NXnRPX3RMW3VPXXNOXHJOXXNNXHNOXXFPXHNNXXFPXHFOW3NPXHNPXXJPXXFPXXNNXXFNW3NOXHJPW25PXXNRX3NSYHVSYHZ0fIx1fo13gI95hJR6go96g5B7hpZ8hZV9hpZ9h5d/iZiBi5ucoquepa+fpbGhqbSiqbXNbm7Ob2/OcHDOcXHOcnLPdHTQdXXWiIjXiorXjIzenp7eoKDgpKTgpaXgpqbks7TktLTktbXnubnr2drr5+nr6Ons29vs29zs6Ors6ert6uvt6uzu6uz18fH18fL68PD++/v+/Pw8gTaQAAAAFnRSTlMACAkKLjAylJWWmJmdv8HD19ja2/n6GaRWtgAAAMxJREFUGBkFwctqwkAUgOH/nMnVzuDGFhRKKVjf/226cKWbQgNVkphMzFz6fQJQlY0S/boCAqa1AMAwJwRjW4wtcxgS05gEa3HHOYipzxP9ZKot9tR5ZfIff7FetMQcf4tDVexNd1IKbbA+7S59f9mlZGmMVVdpXN+3gwh+RiGLAjkDGTQSjHfhes3OV0+CkXrdL/4gzVunxQ+DYZNvn+Mg6aav35GH8OJS/SUrVTw/9e4FtRvypsbPwmPMAto6AOC+ZASgLBpDmGMA/gHW2Vtk8HXNjQAAAABJRU5ErkJggg=='
-			}))
+			})
 		}),
 		layer = new ol.layer.Vector({
 			source: source_,
@@ -1241,13 +1240,136 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 	return layer;
 }
 
-//***************************************************************
-// Editeur de lignes
+/**
+ * Editeur de lignes
+ */
+function editorButton(id, snapLayers) {
+	var map,
+		el = document.getElementById(id), // L'élement <textarea>
+		format = new ol.format.GeoJSON(),
+		// Lecture des données
+		features = format.readFeatures( // Lit par défaut les données en ESPG:4326
+			JSON.parse(el.textContent), {
+				featureProjection: 'EPSG:3857' // La projection suivant laquelle readFeatures restitue les données !
+			}
+		),
+		// Déclaration de la couche à éditer
+		source = new ol.source.Vector({
+			features: features,
+			wrapX: false
+		}),
+		layer = new ol.layer.Vector({
+			source: source,
+			zIndex: 1
+		}),
+		// Les interactions
+		drawInteraction = new ol.interaction.Draw({
+			source: source,
+			type: 'LineString'
+		}),
+		//TODO : snap sur son propre segment !!!
+		//TODO : snap pendant la création !!!
+		snapInteraction = new ol.interaction.Snap({
+			source: source,
+			pixelTolerance: 5
+		}),
+		hoverInteraction = new ol.interaction.Select({
+			layers: [layer],
+			condition: ol.events.condition.always,
+			hitTolerance: 5
+		}),
+		modifyInteraction = new ol.interaction.Modify({
+			source: source
+		}),
+		removeInteraction = new ol.interaction.Select({
+			layers: [layer],
+			hitTolerance: 5,
+			condition: function(event) {
+				// Un click supprime les features pointés
+				if (event.type == 'pointerdown') {
+					var features = this.getFeatures();
+					for (var i = 0, f; f = features.item(i); i++)
+						source.removeFeature(f);
+					features.clear();
+				}
+				return true; // Continue les actions (hover, ...)
+			}
+		}),
+		actif = false,
+		bouton = controlButton('E', {
+			title: "Editeur de lignes\n" +
+				"Click sur E pour ajouter une ligne\n" +
+				"Click sur un sommet puis déplacer pour modifier\n" +
+				"Click sur une ligne puis déplacer pour créer un sommet\n" +
+				"Alt+click sur un sommet ou un segment pour le supprimer" +
+				"Alt+click sur une ligne pour la supprimer",
+			action: function() {
+				active(actif ^= 1); // Bascule on/off
+			}
+		});
 
-// Requires ol.Map.prototype.addLayer
-// Requires controlButton
-// Requires ol.layer onAdd option
+	bouton.setMap = function(m) {
+		ol.control.Control.prototype.setMap.call(this, m);
+		map = m;
+		map.addLayer(layer);
+
+		// Intéractions initiales
+		map.addInteraction(modifyInteraction);
+		if (!document.getElementsByClassName('ol-length-line').length)
+			map.addInteraction(hoverInteraction); // Bloque le zoom si en double avec ol.control.LengthLine !!!
+		map.getInteractions().getArray().forEach(function(i) { // Evite de zoomer quand on sort du mode par doubleclick
+			if (i instanceof ol.interaction.DoubleClickZoom)
+				map.removeInteraction(i);
+		});
+
+		// Snap sur des sources extèrieures à l'éditeur
+		if (snapLayers) {
+			//TODO		for (var s = 0; s < snapLayers.length; s++)
+			for (var s in snapLayers)
+				snapLayers[s].getSource().on('change', function() {
+					this.forEachFeature(
+						function(f) {
+							snapInteraction.addFeature(f);
+						}
+					);
+				});
+			map.addInteraction(snapInteraction);
+		}
+	}
+
+	function active(a) {
+		actif = a;
+		if (a) {
+			bouton.element.firstChild.style.color = 'black'; // Colore le bouton
+			bouton.element.firstChild.innerHTML = '+'; // Colore le bouton
+			map.removeInteraction(modifyInteraction);
+			map.addInteraction(drawInteraction);
+			map.addInteraction(snapInteraction);
+		} else {
+			bouton.element.firstChild.style.color = 'white';
+			bouton.element.firstChild.innerHTML = 'E'; // Colore le bouton
+			map.removeInteraction(drawInteraction);
+			map.addInteraction(modifyInteraction);
+			map.addInteraction(snapInteraction);
+		}
+	}
+
+	drawInteraction.on(['drawend'], function(e) {
+		active(false); // On referme le mode création de ligne
+	});
+	source.on(['change'], function() {
+		//TODO		stickLines();
+		// Sauver les lignes dans <EL> sous forme geoJSON à chaque modif
+		el.textContent = format.writeFeatures(source.getFeatures(), {
+			featureProjection: 'EPSG:3857' // La projection des données internes
+		});
+	});
+
+	return bouton;
+}
 //***************************************************************
+//***************************************************************
+if(0)/////////////////////////////////////////////////
 function lineEditor(id, snaps) {
 
 	// Déclaration des boutons de l'éditeur
