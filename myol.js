@@ -120,6 +120,48 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 };
 
 //***************************************************************
+function controlsCollection() {
+	return [
+		new ol.control.Zoom(),
+		new ol.control.Attribution({
+			collapsible: false // Attribution toujours ouverte
+		}),
+		//TBD BUG full screen limité en hauteur (chrome, mobile, ...)
+		new ol.control.FullScreen({
+			label: '\u21d4',
+			labelActive: '\u21ce',
+			tipLabel: 'Plein écran'
+		}),
+		new ol.control.ScaleLine(),
+		new ol.control.LengthLine(),
+		new ol.control.MousePosition({
+			coordinateFormat: ol.coordinate.createStringXY(5),
+			projection: 'EPSG:4326',
+			className: 'ol-coordinate'
+		}),
+		permalink({
+			init: true,
+			invisible: false
+		}),
+		// https://github.com/jonataswalker/ol-geocoder
+		new Geocoder('nominatim', {
+			provider: 'osm',
+			lang: 'FR',
+			placeholder: 'Recherche par nom' // Initialisation du champ de saisie
+		}),
+		buttonGPS(),
+		controlButton('&equiv;', {
+			title: 'Imprimer la carte',
+			action: function() {
+				window.print();
+			}
+		})
+	];
+}
+//***************************************************************
+
+
+//***************************************************************
 // GEOJSON & AJAX LAYERS
 //***************************************************************
 /**
@@ -455,6 +497,19 @@ function overpassLayer(request) {
 		}
 	});
 }
+
+//***************************************************************
+//***************************************************************
+function overlaysCollection() {
+	return {
+		//TODO	OverPass: overpassLayer(),
+		Chemineur: chemineurLayer(),
+		Massifs: massifsWriLayer(),
+		WRI: pointsWriLayer()
+	};
+}
+//***************************************************************
+//***************************************************************
 
 //******************************************************************************
 // CONTROLS
@@ -1052,6 +1107,42 @@ function osLayer(key) {
 	});
 }
 
+//***************************************************************
+//***************************************************************
+function layersCollection(keys) {
+	return {
+		'OSM-FR': OSMlayer('//{a-c}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'),
+		'OSM': OSMlayer('//{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+		'MRI': OSMlayer('//maps.refuges.info/hiking/{z}/{x}/{y}.png', '<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'),
+		'Hike & Bike': OSMlayer('http://{a-c}.tiles.wmflabs.org/hikebike/{z}/{x}/{y}.png', '<a href="http://www.hikebikemap.org/">hikebikemap.org</a>'), // Not on https
+		'Autriche': kompassLayer('KOMPASS Touristik'),
+		'OSM-outdoors': thunderforestLayer('outdoors', keys.thunderforest),
+		'OSM-cycle': thunderforestLayer('cycle', keys.thunderforest),
+		'OSM-landscape': thunderforestLayer('landscape', keys.thunderforest),
+		'OSM-transport': thunderforestLayer('transport', keys.thunderforest),
+		'IGN': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS'),
+		'IGN photos': ignLayer(keys.IGN, 'ORTHOIMAGERY.ORTHOPHOTOS'),
+		'IGN TOP 25': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.STANDARD'),
+		'IGN classique': ignLayer(keys.IGN, 'GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-EXPRESS.CLASSIQUE'),
+		// NOT YET	ignLayer('IGN avalanches', keys.IGN,'GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN'),
+		'Cadastre': ignLayer(keys.IGN, 'CADASTRALPARCELS.PARCELS', 'image/png'),
+		'Swiss': swissLayer('ch.swisstopo.pixelkarte-farbe'),
+		'Swiss photo': swissLayer('ch.swisstopo.swissimage'),
+		'Espagne': spainLayer('mapa-raster', 'MTN'),
+		'Espagne photo': spainLayer('pnoa-ma', 'OI.OrthoimageCoverage'),
+		'Italie': igmLayer(),
+		'Angleterre': osLayer(keys.bing),
+		'Bing': bingLayer('Road', keys.bing),
+		'Bing photo': bingLayer('Aerial', keys.bing),
+		'Google road': googleLayer('m'),
+		'Google terrain': googleLayer('p'),
+		'Google photo': googleLayer('s'),
+		'Google hybrid': googleLayer('s,h'),
+		Stamen: stamenLayer('terrain'),
+		Watercolor: stamenLayer('watercolor'),
+		'Neutre': new ol.layer.Tile()
+	};
+}
 //***************************************************************
 // MARQUEURS
 

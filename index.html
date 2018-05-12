@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>My Openlayers</title>
@@ -38,7 +38,40 @@
 		}
 	</textarea>
 
-	<!-- Test -->
-	<script src="index.js" type="text/javascript"></script>
-  </body>
+	<script>
+		var map = new ol.Map({
+			target: 'map',
+			//	loadTilesWhileInteracting: true,
+			controls: controlsCollection(),
+			view: new ol.View({
+				//center: ol.proj.fromLonLat([-3.5, 48.25]), // France
+				center: ol.proj.fromLonLat([7, 47]), // Suisse
+				//center: ol.proj.fromLonLat([9.2, 45.5]), // Milan
+				//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
+				//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
+				zoom: 8
+			})
+		});
+		map.addControl(
+			controlLayers(
+				layersCollection({
+					IGN: 'o6owv8ubhn3vbz2uj8jq5j0z', // localhost
+					//	IGN: 'hcxdz5f1p9emo4i1lch6ennl', // chemineur.fr
+					thunderforest: 'a54d38a8b23f435fa08cfb1d0d0b266e', // https://manage.thunderforest.com
+					bing: 'ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt',
+				}),
+				overlaysCollection()
+			)
+		);
+		map.addLayer(marqueur('images/cadre.png', [-.575, 44.845], 'lonlat', ['Lon {0}, Lat {1}', '<br/>X {2}, Y {3} (CH1903)']));
+		map.addLayer(marqueur('images/viseur.png', [6.15, 46.2], 'edit-lonlat', [
+			'Lon <input type="text" onchange="viseur.edit(this,0,4326)" size="12" maxlength="12" value="{0}"/>' +
+			'<br/>Lat <input type="text" onchange="viseur.edit(this,1,4326)" size="12" maxlength="12" value="{1}"/>',
+			'<br/>X <input type="text" onchange="viseur.edit(this,0,21781)" size="12" maxlength="12" value="{2}"/>' +
+			'<br/>Y <input type="text" onchange="viseur.edit(this,1,21781)" size="12" maxlength="12" value="{3}"/>'
+		], 'edit'));
+		//map.addLayer(lineEditor('geojson', [overLayers.Massifs]));
+		map.addLayer(lineEditor('geojson'));
+	</script>
+</body>
 </html>
