@@ -6,6 +6,24 @@
 // Each feature is included in a single function that you can include separately
 //******************************************************************************
 
+//TODO Voir traffic réseau (autre couche = ord survey ??)
+//TODO mobiles ! boutons trop grand ou trop pres
+//TODO https
+//TODO GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
+//TODO check , à la fin des tablos
+//TODO mem cookie couches overlay
+//TODO upload, download GPX 
+//	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
+//	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
+//TODO Superzoom
+//TODO Harmoniser buttonXxxx yyyElement ...
+//TODO Site off line, application
+
+//TODO REWRITE
+//	https://github.com/JefferyHus/es6-crawler-detect/tree/master/dist
+//	Line 85291:     ol.layer.Layer.prototype.setMap);
+//	Line 32617: ol.Overlay.prototype.setMap = function(map) {
+
 /**
  * ol.layer options
  * option.onAdd {function(map)} to be executed when the layer is added to the map
@@ -105,7 +123,7 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 			condition: ol.events.condition.pointerMove,
 			hitTolerance: 8,
 			filter: function(f) {
-				return f.getGeometry().getType().indexOf('String') > 0; // Uniquement les lignes
+				return ol.Sphere.getLength(f.getGeometry()) > 0; // Uniquement les lignes
 			}
 		});
 		ol.events.listen(
@@ -120,6 +138,7 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 };
 
 //***************************************************************
+//TODO fullscreen / pas toute la page ! / les icones ne sont pas ou est le hover
 function controlsCollection() {
 	return [
 		new ol.control.Zoom(),
@@ -1096,7 +1115,7 @@ function bingLayer(layer, key) {
 // Ordnance Survey : Great Britain map
 
 // Requires incompleteTileLayer
-// TODO : attribution : Ordnance Survey
+//TODO : attribution : Ordnance Survey
 //***************************************************************
 function osLayer(key) {
 	return incompleteTileLayer([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
