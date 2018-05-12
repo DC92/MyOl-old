@@ -1165,15 +1165,15 @@ function editorButton(id, snapLayers) {
 				condition: ol.events.condition.always,
 				hitTolerance: 5
 			}),
-			//TODO : snap sur son propre segment !!!
-			//TODO : snap pendant la création !!!
 			snap: new ol.interaction.Snap({
 				source: source,
 				pixelTolerance: 5
 			}),
 			modify: new ol.interaction.Modify({
 				source: source,
-				deleteCondition: ol.events.condition.altKeyOnly && ol.events.condition.click //HACK parceque le système ne donne pas singleClick
+				deleteCondition: function(e) { //HACK parceque le système ne donne pas singleClick
+					return e.originalEvent.ctrlKey && ol.events.condition.click(e);
+				}
 			}),
 			draw: new ol.interaction.Draw({
 				source: source,
@@ -1230,7 +1230,7 @@ function editorButton(id, snapLayers) {
 						}
 					);
 				});
-		setMode(true); // Edit mode by default
+		setMode(true); // Set edit mode by default
 	}
 
 	function setMode(a) {
@@ -1268,13 +1268,14 @@ function editorButton(id, snapLayers) {
 
 	//////////////////////////////////////////////////
 	// Supprime un segment et coupe une ligne en 2
-	interactions.modify.on('modifyend', function(event) {
-		if (ol.events.condition.altKeyOnly(event.mapBrowserEvent) &&
-			event.mapBrowserEvent.type == 'pointerup') {
+	interactions.modify.on('modifyend', function(e) {
+		if (e.mapBrowserEvent.originalEvent.ctrlKey &&
+			e.mapBrowserEvent.type == 'pointerup') {
 			// On récupère la liste des features visés
-			var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
+			var features = e.mapBrowserEvent.map.getFeaturesAtPixel(e.mapBrowserEvent.pixel, {
 				hitTolerance: 5
 			});
+/*DCMM*/{var _v=features,_r='';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 
 			/*
 						// En théorie, on doit sélectionner au moins 2 features :
@@ -1311,6 +1312,7 @@ function editorButton(id, snapLayers) {
 
 	return bouton;
 }
+
 //***************************************************************
 //***************************************************************
 if(0)/////////////////////////////////////////////////
