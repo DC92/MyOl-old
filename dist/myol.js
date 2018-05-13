@@ -976,7 +976,7 @@ function controlLayers(baseLayers, overLayers) {
 
 		// Refresh layer visibility
 		var selectorInputs = selectorElement.getElementsByTagName('input');
-//TODO ?? pourquoi ça marche pas ?					for (var i in selectorInputs)
+//TODO ?? pourquoi ça marche pas ? for (var i in selectorInputs)
 		for (var i = 0; i < selectorInputs.length; i++)
 			(baseLayers[selectorInputs[i].value] || overLayers[selectorInputs[i].value]).setVisible(selectorInputs[i].checked);
 
@@ -1058,8 +1058,6 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 	ol.control.MousePosition.prototype.setMap.call(this, map); //HACK
 	var element = this.element;
 
-	element.innerHTML = null;
-	if (map) {
 		var mip = new ol.interaction.Select({
 			condition: ol.events.condition.pointerMove,
 			hitTolerance: 3,
@@ -1073,13 +1071,12 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
 				else if (length >= 1)
 					element.innerHTML = (Math.round(length)) + ' m';
-
 				return length; // Continue hover if line
 			}
 		});
 		map.addInteraction(mip);
 
-		// Get back the basic pointer when move out from the feature
+		// Clear the counter when move out from the feature
 		var mip2 = new ol.interaction.Select({
 			condition: ol.events.condition.pointerMove,
 			hitTolerance: 8,
@@ -1094,10 +1091,17 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 				element.innerHTML = null;
 			}
 		);
+		//map.addInteraction(mip2);
+
+map.on(['zzzzs'], function() {
+		map.removeInteraction(mip);
+		map.addInteraction(mip);
+		map.removeInteraction(mip2);
 		map.addInteraction(mip2);
+		map.renderSync();
+});
 zzzz1 = mip;
 zzzz2 = mip2;
-	}
 };
 
 /**
@@ -1117,7 +1121,7 @@ function controlsCollection() {
 			tipLabel: 'Plein écran'
 		}),
 		new ol.control.ScaleLine(),
-//zzzz		new ol.control.LengthLine(),
+		new ol.control.LengthLine(),
 		new ol.control.MousePosition({
 			coordinateFormat: ol.coordinate.createStringXY(5),
 			projection: 'EPSG:4326',
@@ -1165,11 +1169,12 @@ function editorButton(id, snapLayers) {
 			zIndex: 1
 		}),
 		interactions = {
-			hover: new ol.interaction.Select({
+//TODO DELETE
+/*			hover: new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.always,
 				hitTolerance: 5
-			}),
+			}),*/
 			snap: new ol.interaction.Snap({
 				source: source,
 				pixelTolerance: 5
@@ -1223,38 +1228,28 @@ function editorButton(id, snapLayers) {
 		setMode(true); // Set edit mode by default
 	}
 
-	function setMode(a) {
-		editMode = a;
-		bouton.element.firstChild.style.color = editMode ? 'white' : 'black';
+	function setMode(em) {
+		editMode = em;
 		bouton.element.firstChild.innerHTML = editMode ? 'E' : '+';
-		// Remove all interactions
+		bouton.element.firstChild.style.color = editMode ? 'white' : 'black';
 		for (var i in interactions)
 			map.removeInteraction(interactions[i]);
-
-		if (editMode) {
-			map.addInteraction(interactions.modify);
-			//HACK interactions.hover blocks the zoom if in duplicate with ol.control.LengthLine !!!
-if(0)//zzzz
-			if (!document.getElementsByClassName('ol-length-line').length)
-				map.addInteraction(interactions.hover);
-		} else { // Insert new line mode
-			map.addInteraction(interactions.draw);
-		}
-		// Common interactions
+		map.addInteraction(editMode ? interactions.modify : interactions.draw);
 		map.addInteraction(interactions.snap);
 	}
 	interactions.draw.on(['drawend'], function(e) {
 		setMode(true); // On referme le mode création de ligne
 	});
 	source.on(['change'], function() {
-		//TODO stickLines();
+		//TODO bug quand drag pour joindre
+		stickLines();
 		// Save lines in <EL> as geoJSON at every change
 		el.textContent = format.writeFeatures(source.getFeatures(), {
 			featureProjection: 'EPSG:3857'
 		});
 	});
 
-	// Supprime un segment et coupe une ligne en 2
+	// Supprime une ligne, un segment et coupe une ligne en 2
 	interactions['modify'].on('modifyend', function(event) {
 		// On récupère la liste des features visés
 		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
@@ -1269,10 +1264,7 @@ if(0)//zzzz
 
 			var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
 				c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
-				cs = [
-					[],
-					[]
-				], // Les coordonnées des 2 segments découpés
+				cs = [[],[]], //B[[],[]] Les coordonnées des 2 segments découpés
 				s = 0;
 			for (i = 0; i < c1.length / 2; i++)
 				// Si on a trouvé le point de coupure
@@ -1282,13 +1274,64 @@ if(0)//zzzz
 					cs[s].push([c1[2 * i], c1[2 * i + 1]]);
 
 			// On dessine les 2 bouts de lignes
-			//TBD for (var f = 0; f < cs.length; f++)
+			//TODO for (var f = 0; f < cs.length; f++)
 			for (var f in cs)
 				if (cs[f].length > 1) // s'ils ont au moins 2 points
 					source.addFeature(new ol.Feature({
 						geometry: new ol.geom.LineString(cs[f])
 					}));
+			}	
+map.dispatchEvent('zzzz');//TODO BUG hover reste aprés destruction d'un segment ou une ligne
+		});
+
+	// Joint les lignes ayant un bout identique
+	function stickLines() {
+		var features = source.getFeatures(),
+			lines = [];
+
+		// On fait un grand tableau avec tous les lines
+//TODO for (var f = 0; f < features.length; f++) {
+		for (var f in features) {
+			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
+				coordinates = []; // On va les remettre en tableau de lonlat
+			for (var c = 0; c < flatCoordinates.length / 2; c++)
+				coordinates.push(flatCoordinates.slice(c * 2, c * 2 + 2));
+
+			// Dans chacun des sens
+			for (var i = 0; i < 2; i++) {
+				lines.push({
+					indexFeature: f,
+					premier: coordinates[0], // Le premier point
+					suite: coordinates.slice(1) // Les autres points
+				});
+				coordinates = coordinates.reverse(); // Et on recommence dans l'autre sens
+			}
 		}
-	});
+
+		// On recherche 2 lines ayant le même premier bout
+		for (var m in lines) {
+//TODO for (var m = 0; m < lines.length; m++) {
+			var found = lines.find(function(event) { //TODO IE ne supporte pas find
+				if (event.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
+				if (event.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
+				if (event.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
+				return true;
+			});
+
+			// On en a trouvé au moins une paire
+			if (typeof found == 'object') {
+				// On supprime les 2 lines
+				source.removeFeature(features[found.indexFeature]);
+				source.removeFeature(features[lines[m].indexFeature]);
+
+				// On en rajoute un en recollant les 2 bouts
+				source.addFeature(new ol.Feature({
+					geometry: new ol.geom.LineString(found.suite.reverse().concat([found.premier]).concat(lines[m].suite))
+				}));
+				return stickLines(); // On recommence au début
+			}
+		}
+	}
+
 	return bouton;
 }
