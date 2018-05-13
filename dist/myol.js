@@ -1171,38 +1171,23 @@ function editorButton(id, snapLayers) {
 			}),
 			modify: new ol.interaction.Modify({
 				source: source,
-				deleteCondition: function(e) { //HACK parceque le système ne donne pas singleClick
-					return e.originalEvent.ctrlKey && ol.events.condition.click(e);
+				deleteCondition: function(e) {
+					return e.originalEvent.ctrlKey && ol.events.condition.click(e); //HACK parceque le système ne donne pas singleClick
 				}
 			}),
 			draw: new ol.interaction.Draw({
 				source: source,
 				type: 'LineString'
 			})
-		}
-	//TODO conditionnel à question ???		map.addInteraction(removeInteraction);
-	/*
-	removeInteraction = new ol.interaction.Select({
-		layers: [layer],
-		hitTolerance: 5,
-		condition: function(event) {
-			// Un click supprime les features pointés
-			if (event.type == 'pointerdown') {
-				var features = this.getFeatures();
-				for (var i = 0, f; f = features.item(i); i++)
-					source.removeFeature(f);
-				features.clear();
-			}
-			return true; // Continue les actions (hover, ...)
-		}
-	}),*/
-	editMode = true, // Versus false if insert line mode
+		},
+		editMode = true, // Versus false if insert line mode
 		bouton = controlButton('E', {
 			title: "Editeur de lignes\n" +
 				"Click sur E pour ajouter ou étendre une ligne, doubleclick pour finir\n" +
 				"Click sur un sommet puis déplacer pour modifier\n" +
-				"Click sur une ligne puis déplacer pour créer un sommet\n" +
-				"Alt+click sur un sommet ou un segment pour le supprimer" +
+				"Click sur un segment puis déplacer pour créer un sommet\n" +
+				"Ctrl+click sur un sommet pour le supprimer\n" +
+				"Ctrl+click sur un segment pour le supprimer et couper la ligne\n" +
 				"Alt+click sur une ligne pour la supprimer",
 			action: function() {
 				setMode(editMode ^= 1); // Alternately switch modes
@@ -1264,272 +1249,73 @@ function editorButton(id, snapLayers) {
 		});
 	});
 
-
-
-	//////////////////////////////////////////////////
-	// Supprime un segment et coupe une ligne en 2
 	interactions.modify.on('modifyend', function(e) {
-		if (e.mapBrowserEvent.originalEvent.ctrlKey &&
-			e.mapBrowserEvent.type == 'pointerup') {
-			// On récupère la liste des features visés
-			var features = e.mapBrowserEvent.map.getFeaturesAtPixel(e.mapBrowserEvent.pixel, {
-				hitTolerance: 5
-			});
+		// On récupère la liste des features visés
+		var features = map.getFeaturesAtPixel(e.mapBrowserEvent.pixel, {
+			hitTolerance: 5
+		});
+		if (e.mapBrowserEvent.originalEvent.altKey)
+			// Supprime une ligne
+			source.removeFeature(features[1]);
+			//TODO voir comment clearer hover
+		else if (e.mapBrowserEvent.originalEvent.ctrlKey) {
+			// Supprime un segment et coupe une ligne en 2
 /*DCMM*/{var _v=features,_r='';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
-
-			/*
-						// En théorie, on doit sélectionner au moins 2 features :
-						if (features.length > 1) {
-							var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
-								c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
-								cs = [[],[]], // Les coordonnées des 2 segments découpés
-								s = 0;
-							for (i = 0; i < c1.length / 2; i++)
-								// Si on a trouvé le point de coupure, on le saute et on incrémente le compteur de segment
-								if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
-									s++;
-								else // On ajoute le point courant
-									cs[s].push([c1[2 * i], c1[2 * i + 1]]);
-
-							// On enlève la ligne existante
-							source.removeFeature(features[1]);
-
-							// On dessine les 2 lines de lignes
-			//TODO				for (var f = 0; f < cs.length; f++)
-							for (var f in cs)
-								if (cs[f].length > 1) // s'ils ont au moins 2 points
-									source.addFeature(new ol.Feature({
-										geometry: new ol.geom.LineString(cs[f])
-									}));
-						}
-			*/
 		}
 	});
-	//////////////////////////////////////////////////
+//	if (e.mapBrowserEvent.type == 'pointerup'); {
+	/*
+	removeInteraction = new ol.interaction.Select({
+		layers: [layer],
+		hitTolerance: 5,
+		condition: function(event) {
+			// Un click supprime les features pointés
+			if (event.type == 'pointerdown') {
+				var features = this.getFeatures();
+				for (var i = 0, f; f = features.item(i); i++)
+					source.removeFeature(f);
+				features.clear();
+			}
+			return true; // Continue les actions (hover, ...)
+		}
+	}),*/
 
+		/*
+						var features = this.getFeatures();
+				for (var i = 0, f; f = features.item(i); i++)
+					source.removeFeature(f);
+				features.clear();
 
+		
+		
+					// En théorie, on doit sélectionner au moins 2 features :
+					if (features.length > 1) {
+						var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
+							c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
+							cs = [[],[]], // Les coordonnées des 2 segments découpés
+							s = 0;
+						for (i = 0; i < c1.length / 2; i++)
+							// Si on a trouvé le point de coupure, on le saute et on incrémente le compteur de segment
+							if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
+								s++;
+							else // On ajoute le point courant
+								cs[s].push([c1[2 * i], c1[2 * i + 1]]);
+
+						// On enlève la ligne existante
+						source.removeFeature(features[1]);
+
+						// On dessine les 2 lines de lignes
+		//TODO				for (var f = 0; f < cs.length; f++)
+						for (var f in cs)
+							if (cs[f].length > 1) // s'ils ont au moins 2 points
+								source.addFeature(new ol.Feature({
+									geometry: new ol.geom.LineString(cs[f])
+								}));
+					}
+		*/
+//	}
+//////////////////////////////////////////////////
 
 
 	return bouton;
-}
-
-//***************************************************************
-//***************************************************************
-if(0)/////////////////////////////////////////////////
-function lineEditor(id, snaps) {
-
-	// Déclaration des boutons de l'éditeur
-	var map, // THE map !
-		actif, // Le texte du bouton du contôle actif
-		controles = { // Les interactions OL à activer pour chaque bouton
-			'+': ['draw', 'snap'],
-			'M': ['hover', 'modify', 'snap'],
-			'-': ['remove']
-		};
-
-	function editControl(label, title) {
-		return controlButton(label, {
-			action: clickBouton,
-			title: title,
-			color: '#848',
-			className: 'ol-button-edit'
-		});
-	}
-	var boutonEdits = [
-		editControl('+', 'Pointer le début et cliquer pour dessiner une ligne'),
-		editControl('M',
-			"Click sur un sommet puis déplacer pour modifier\n" +
-			"Click sur une ligne puis déplacer pour créer un sommet\n" +
-			"Alt+click sur un sommet ou un segment pour le supprimer"
-		),
-		editControl('-', 'Click sur une ligne pour la supprimer')
-	];
-
-	var el = document.getElementById(id), // L'élement <textarea>
-		format = new ol.format.GeoJSON(),
-		// Lecture des données
-		features = format.readFeatures( // Lit par défaut les données en ESPG:4326
-			JSON.parse(el.textContent), {
-				featureProjection: 'EPSG:3857' // La projection suivant laquelle readFeatures restitue les données !
-			}
-		),
-		// Déclaration de la couche à éditer
-		source = new ol.source.Vector({
-			features: features,
-			wrapX: false
-		}),
-		layer = new ol.layer.Vector({
-			source: source,
-			zIndex: 1,
-			onAdd: function(m) {
-				map = m;
-				for (var i in boutonEdits)
-					map.addControl(boutonEdits[i]);
-			}
-		});
-
-	// Déclaration des interactions avec la couche à éditer
-	var interactions = {
-		draw: new ol.interaction.Draw({
-			source: source,
-			type: 'LineString'
-		}),
-		snap: new ol.interaction.Snap({
-			source: source,
-			pixelTolerance: 5
-		}),
-		hover: new ol.interaction.Select({
-			layers: [layer],
-			condition: ol.events.condition.always,
-			hitTolerance: 5
-		}),
-		modify: new ol.interaction.Modify({
-			source: source
-		}),
-		remove: new ol.interaction.Select({
-			layers: [layer],
-			hitTolerance: 5,
-			condition: function(event) {
-				// Un click supprime les features pointés
-				if (event.type == 'pointerdown') {
-					var features = this.getFeatures();
-					for (var i = 0, f; f = features.item(i); i++)
-						source.removeFeature(f);
-					features.clear();
-				}
-
-				// Continue les actions (hover, ...)
-				return true;
-			}
-		})
-	};
-
-	function clickBouton() { // On a cliqué sur un bouton de l'éditeur !
-		// On commence par enlever toutes les interactions
-		for (var i in interactions)
-			map.removeInteraction(interactions[i]);
-
-		// On colore en blanc tous les boutons ede l'éditeur
-		var editButtons = document.getElementsByClassName('ol-button-edit');
-		for (var i = 0; i < editButtons.length; i++)
-			editButtons[i].firstChild.style.color = 'white';
-
-		// Si on re-clique sur le même bouton, on le désactive
-		if (actif == this.textContent)
-			actif = null;
-		else { // Sinon, on colore le bouton actif en noir,
-			actif = this.textContent;
-			this.style.color = 'black';
-			// et on active les intéractions correspondantes
-			for (var i = 0; i < controles[actif].length; i++)
-				map.addInteraction(interactions[controles[actif][i]]);
-		}
-	}
-
-	// Snap sur des sources extèrieures à l'éditeur
-	if (snaps)
-//TODO		for (var s = 0; s < snaps.length; s++)
-		for (var s in snaps)
-			snaps[s].getSource().on('change', function() {
-				this.forEachFeature(
-					function(f) {
-						interactions.snap.addFeature(f);
-					}
-				);
-			});
-
-	// Supprime un segment et coupe une ligne en 2
-	interactions.modify.on('modifyend', function(event) {
-		if (ol.events.condition.altKeyOnly(event.mapBrowserEvent) &&
-			event.mapBrowserEvent.type == 'pointerup') {
-			// On récupère la liste des features visés
-			var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
-				hitTolerance: 5
-			});
-			// En théorie, on doit sélectionner au moins 2 features :
-			if (features.length > 1) {
-				var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
-					c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
-					cs = [[],[]], // Les coordonnées des 2 segments découpés
-					s = 0;
-				for (i = 0; i < c1.length / 2; i++)
-					// Si on a trouvé le point de coupure, on le saute et on incrémente le compteur de segment
-					if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
-						s++;
-					else // On ajoute le point courant
-						cs[s].push([c1[2 * i], c1[2 * i + 1]]);
-
-				// On enlève la ligne existante
-				source.removeFeature(features[1]);
-
-				// On dessine les 2 lines de lignes
-//TODO				for (var f = 0; f < cs.length; f++)
-				for (var f in cs)
-					if (cs[f].length > 1) // s'ils ont au moins 2 points
-						source.addFeature(new ol.Feature({
-							geometry: new ol.geom.LineString(cs[f])
-						}));
-			}
-		}
-	});
-
-	// Joint les lignes ayant un bout identique
-	function stickLines() {
-		var features = source.getFeatures(),
-			lines = [];
-
-		// On fait un grand tableau avec toutes les lignes
-//TODO		for (var f = 0; f < features.length; f++) {
-		for (var f in features) {
-			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
-				coordinates = []; // On va les remettre en tableau de lonlat
-			for (var c = 0; c < flatCoordinates.length / 2; c++)
-				coordinates.push(flatCoordinates.slice(c * 2, c * 2 + 2));
-
-			// Dans chacun des sens
-			for (var i = 0; i < 2; i++) {
-				lines.push({
-					indexFeature: f,
-					premier: coordinates[0], // Le premier point
-					suite: coordinates.slice(1) // Les autres points
-				});
-				coordinates = coordinates.reverse(); // Et on recommence dans l'autre sens
-			}
-		}
-
-		// On recherche 2 lines ayant le même premier bout
-		for (var m in lines) {
-//TODO 		for (var m = 0; m < lines.length; m++) {
-			var found = lines.find(function(event) { //TODO IE ne supporte pas find
-				if (event.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
-				if (event.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
-				if (event.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
-				return true;
-			});
-
-			// On en a trouvé au moins une paire
-			if (typeof found == 'object') {
-				// On supprime les 2 lines
-				source.removeFeature(features[found.indexFeature]);
-				source.removeFeature(features[lines[m].indexFeature]);
-
-				// On en rajoute un en recollant les 2 bouts
-				source.addFeature(new ol.Feature({
-					geometry: new ol.geom.LineString(found.suite.reverse().concat([found.premier]).concat(lines[m].suite))
-				}));
-				return stickLines(); // On recommence au début
-			}
-		}
-	}
-
-	source.on(['change'], function() {
-		stickLines();
-		// Sauver les lignes dans <EL> sous forme geoJSON à chaque modif
-		el.textContent = format.writeFeatures(source.getFeatures(), {
-			featureProjection: 'EPSG:3857' // La projection des données internes
-		});
-		//source.changed();
-	});
-
-	return layer;
 }
