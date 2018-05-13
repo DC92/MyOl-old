@@ -6,44 +6,45 @@
 // Each feature is included in a single function that you can include separately
 //******************************************************************************
 
-//TODO reprendre commentaires
-//TODO Voir traffic réseau (autre couche = ord survey ??)
-//TODO mobiles ! boutons trop grand ou trop pres
-//TODO https
-//TODO GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
-//TODO check , à la fin des tablos
-//TODO mem cookie couches overlay
-//TODO upload, download GPX 
+//TODO TODO impression full format page
+//TODO TODO upload, download GPX 
 //	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
 //	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
-//TODO Superzoom
-//TODO Harmoniser buttonXxxx yyyElement ...
-//TODO Site off line, application
-//TODO traduire commentaires en 1 seule langue (UK ?)
-//TODO impression full format page
+
+//TODO BEST reprendre commentaires / traduire commentaires en 1 seule langue (UK ?)
+//TODO BEST Voir traffic réseau (autre couche = ord survey ??)
+//TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
+//TODO BEST check , à la fin des tablos
+//TODO BEST mem cookie couches overlay
+//TODO BEST Superzoom
+//TODO BEST Harmoniser buttonXxxx yyyElement ...
+//TODO BEST Site off line, application
+
+//TODO TEST mobiles ! boutons trop grand ou trop pres
+//TODO TEST https
 
 /**
  * Ajoute onAdd_(map) aux layers
  */
-var formerMapAddLayer = ol.Map.prototype.addLayer;//HACK
+var formerMapAddLayer = ol.Map.prototype.addLayer; //HACK
 ol.Map.prototype.addLayer = function(layer) { // Overwrite ol.Map.addLayer
 	formerMapAddLayer.call(this, layer); // Call former method
 	layer.onAdd_(this); // Call ol.layer function
 };
 
-var formerLayerBase = ol.layer.Base;//HACK
+var formerLayerBase = ol.layer.Base; //HACK
 ol.layer.Base = function(options) { // Overwrite ol.layer
 	formerLayerBase.call(this, options); // Call former method
 
-//TODO Line 32617: ol.Overlay.prototype.setMap = function(map) {
-//TODO Line 85291: ol.layer.Layer.prototype.setMap);
+	//TODO BEST Line 32617: ol.Overlay.prototype.setMap = function(map) {
+	//TODO BEST Line 85291: ol.layer.Layer.prototype.setMap);
 	this.onAdd_ = function(map) { // Private function called by ol.Map.addLayer
 		// onAdd layer option
 		if (typeof options.onAdd == 'function')
 			options.onAdd.call(this, map);
 
 		// Hover layer option
-		//TODO mettre le hover autre part qu'en général !!
+		//TODO BEST mettre le hover autre part qu'en général !!
 		if (options.hover) {
 			var hoverInteraction = new ol.interaction.Select({
 				layers: [this],
@@ -137,8 +138,9 @@ function googleLayer(layer) {
 function stamenLayer(layer) {
 	return new ol.layer.Tile({
 		source: new ol.source.Stamen({
-		layer: layer
-	})});
+			layer: layer
+		})
+	});
 }
 
 /**
@@ -165,8 +167,7 @@ function ignLayer(key, layer, format) {
 			format: format || 'image/jpeg',
 			tileGrid: IGNtileGrid,
 			style: 'normal',
-			attributions:
-				'<a href="http://www.geoportail.fr/" target="_blank">' +
+			attributions: '<a href="http://www.geoportail.fr/" target="_blank">' +
 				'<img src="https://api.ign.fr/geoportail/api/js/latest/theme/geoportal/img/logo_gp.gif"></a>'
 		})
 	});
@@ -176,7 +177,7 @@ function ignLayer(key, layer, format) {
  * Incomplete cards
  * Virtual class
  * displays OSM outside the zoom area, 
- * displays blank outside the area of validity
+ * displays blank outside the area of validity
  */
 function incompleteTileLayer(extent, sources) {
 	var map, view,
@@ -199,7 +200,7 @@ function incompleteTileLayer(extent, sources) {
 
 		// Search for sources according to the map resolution
 		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).find(function(e) { //TODO : IE ne gére pas find
+			resolution = Object.keys(sources).find(function(e) { //TODO BUG IE ne gére pas find
 				return e > view.getResolution();
 			});
 
@@ -291,7 +292,7 @@ function bingLayer(layer, key) {
 /**
  * Ordnance Survey : Great Britain
  */
-//TODO : attribution : Ordnance Survey
+//TODO BEST attribution : Ordnance Survey
 function osLayer(key) {
 	return incompleteTileLayer([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
 		100: new ol.source.BingMaps({
@@ -311,10 +312,10 @@ function layersCollection(keys) {
 		'MRI': OSMlayer('//maps.refuges.info/hiking/{z}/{x}/{y}.png', '<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'),
 		'Hike & Bike': OSMlayer('http://{a-c}.tiles.wmflabs.org/hikebike/{z}/{x}/{y}.png', '<a href="http://www.hikebikemap.org/">hikebikemap.org</a>'), // Not on https
 		'Autriche': kompassLayer('KOMPASS Touristik'),
-//		'Kompas': kompassLayer(, 'KOMPASS'),
-//		'Kompas summer': kompassLayer('Summer OSM'),
-//		'Kompas winter': kompassLayer('Winter OSM'),
-//		'Kompas luftbild': kompassLayer('a'),
+		//'Kompas': kompassLayer(, 'KOMPASS'),
+		//'Kompas summer': kompassLayer('Summer OSM'),
+		//'Kompas winter': kompassLayer('Winter OSM'),
+		//'Kompas luftbild': kompassLayer('a'),
 		'OSM-outdoors': thunderforestLayer('outdoors', keys.thunderforest),
 		'OSM-cycle': thunderforestLayer('cycle', keys.thunderforest),
 		'OSM-landscape': thunderforestLayer('landscape', keys.thunderforest),
@@ -333,7 +334,7 @@ function layersCollection(keys) {
 		'Angleterre': osLayer(keys.bing),
 		'Bing': bingLayer('Road', keys.bing),
 		'Bing photo': bingLayer('Aerial', keys.bing),
-//		'Bing mixte': bingLayer ('AerialWithLabels', bingKey),
+		//'Bing mixte': bingLayer ('AerialWithLabels', bingKey),
 		'Google road': googleLayer('m'),
 		'Google terrain': googleLayer('p'),
 		'Google photo': googleLayer('s'),
@@ -669,7 +670,7 @@ function overpassLayer(request) {
  */
 function overlaysCollection() {
 	return {
-		//TODO OverPass: overpassLayer(),
+		//TODO TODO OverPass: overpassLayer(),
 		Chemineur: chemineurLayer(),
 		Massifs: massifsWriLayer(),
 		WRI: pointsWriLayer()
@@ -770,7 +771,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
  * options.action {function} called when the control is clicked.
  */
 var nextButtonTopPos = 6; // Top position of next button (em)
-//TODO automatiser position des autres boutons
+//TODO BEST automatiser position des autres boutons
 
 function controlButton(label, options) {
 	var button = document.createElement('button');
@@ -832,10 +833,10 @@ function permalink(options) {
 					view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
 					// Also select layer
 					var inputs = document.getElementsByTagName('input');
-					for (var i in inputs)//TDB ne marche pas tout le temps !!! => for i=0;... ???
+					for (var i in inputs) //TDB ne marche pas tout le temps !!! => for i=0;... ???
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
-								inputs[i].value == decodeURI(params[3]);
+							inputs[i].value == decodeURI(params[3]);
 					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
 					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
@@ -894,6 +895,7 @@ function controlLayers(baseLayers, overLayers) {
 
 	// When the map is created & rendered
 	var map;
+
 	function render(event) {
 		if (!selectorElement.childElementCount) { // Only the first time
 			map = event.map; // Take occasion to mem the map reference !
@@ -976,7 +978,7 @@ function controlLayers(baseLayers, overLayers) {
 
 		// Refresh layer visibility
 		var selectorInputs = selectorElement.getElementsByTagName('input');
-//TODO ?? pourquoi ça marche pas ? for (var i in selectorInputs)
+		//TODO BEST ?? pourquoi ça marche pas ? for (var i in selectorInputs)
 		for (var i = 0; i < selectorInputs.length; i++)
 			(baseLayers[selectorInputs[i].value] || overLayers[selectorInputs[i].value]).setVisible(selectorInputs[i].checked);
 
@@ -1019,18 +1021,17 @@ function buttonGPS() {
 
 	var active = false,
 		bouton = controlButton('G', {
-		title: 'Centrer sur la position GPS',
-		action: function(event) {
-			active ^= 1; // Bascule on/off
-			event.target.style.color = active ? 'black' : 'white'; // Colore le bouton
-
-			geolocation.setTracking(active); // Active/désactive
-			if (active)
-				bouton.getMap().addLayer(layer);
-			else
-				bouton.getMap().removeLayer(layer);
-		}
-	});
+			title: 'Centrer sur la position GPS',
+			action: function(event) {
+				active ^= 1; // Bascule on/off
+				event.target.style.color = active ? 'black' : 'white'; // Colore le bouton
+				geolocation.setTracking(active); // Active / désactive
+				if (active)
+					bouton.getMap().addLayer(layer);
+				else
+					bouton.getMap().removeLayer(layer);
+			}
+		});
 
 	geolocation.on('change', function() {
 		var pos = ol.proj.fromLonLat(this.getPosition());
@@ -1058,50 +1059,50 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 	ol.control.MousePosition.prototype.setMap.call(this, map); //HACK
 	var element = this.element;
 
-		var mip = new ol.interaction.Select({
-			condition: ol.events.condition.pointerMove,
-			hitTolerance: 3,
-			filter: function(f) { //HACK
-				var length = ol.Sphere.getLength(f.getGeometry());
-				if (length >= 100000)
-					element.innerHTML = (Math.round(length / 1000)) + ' km';
-				else if (length >= 10000)
-					element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-				else if (length >= 1000)
-					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-				else if (length >= 1)
-					element.innerHTML = (Math.round(length)) + ' m';
-				return length; // Continue hover if line
-			}
-		});
-		map.addInteraction(mip);
+	var mip = new ol.interaction.Select({
+		condition: ol.events.condition.pointerMove,
+		hitTolerance: 3,
+		filter: function(f) { //HACK
+			var length = ol.Sphere.getLength(f.getGeometry());
+			if (length >= 100000)
+				element.innerHTML = (Math.round(length / 1000)) + ' km';
+			else if (length >= 10000)
+				element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+			else if (length >= 1000)
+				element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+			else if (length >= 1)
+				element.innerHTML = (Math.round(length)) + ' m';
+			return length; // Continue hover if line
+		}
+	});
+	map.addInteraction(mip);
 
-		// Clear the counter when move out from the feature
-		var mip2 = new ol.interaction.Select({
-			condition: ol.events.condition.pointerMove,
-			hitTolerance: 8,
-			filter: function(f) {
-				return ol.Sphere.getLength(f.getGeometry()) > 0; // Uniquement les lignes
-			}
-		});
-		ol.events.listen(
-			mip2.getFeatures(),
-			ol.CollectionEventType.REMOVE,
-			function() {
-				element.innerHTML = null;
-			}
-		);
-		//map.addInteraction(mip2);
+	// Clear the counter when move out from the feature
+	var mip2 = new ol.interaction.Select({
+		condition: ol.events.condition.pointerMove,
+		hitTolerance: 8,
+		filter: function(f) {
+			return ol.Sphere.getLength(f.getGeometry()) > 0; // Uniquement les lignes
+		}
+	});
+	ol.events.listen(
+		mip2.getFeatures(),
+		ol.CollectionEventType.REMOVE,
+		function() {
+			element.innerHTML = null;
+		}
+	);
+	//map.addInteraction(mip2);
 
-map.on(['zzzzs'], function() {
+	map.on(['zzzzs'], function() {
 		map.removeInteraction(mip);
 		map.addInteraction(mip);
 		map.removeInteraction(mip2);
 		map.addInteraction(mip2);
 		map.renderSync();
-});
-zzzz1 = mip;
-zzzz2 = mip2;
+	});
+	zzzz1 = mip;
+	zzzz2 = mip2;
 };
 
 /**
@@ -1113,8 +1114,8 @@ function controlsCollection() {
 		new ol.control.Attribution({
 			collapsible: false // Attribution toujours ouverte
 		}),
-//TODO fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
-//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
+		//TODO BUG fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
+		//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
 		new ol.control.FullScreen({
 			label: '\u21d4',
 			labelActive: '\u21ce',
@@ -1169,12 +1170,6 @@ function editorButton(id, snapLayers) {
 			zIndex: 1
 		}),
 		interactions = {
-//TODO DELETE
-/*			hover: new ol.interaction.Select({
-				layers: [layer],
-				condition: ol.events.condition.always,
-				hitTolerance: 5
-			}),*/
 			snap: new ol.interaction.Snap({
 				source: source,
 				pixelTolerance: 5
@@ -1216,7 +1211,7 @@ function editorButton(id, snapLayers) {
 
 		// Snap on features external to the editor
 		if (snapLayers)
-			//TODO for (var s = 0; s < snapLayers.length; s++)
+			//TODO BEST for (var s = 0; s < snapLayers.length; s++)
 			for (var s in snapLayers)
 				snapLayers[s].getSource().on('change', function() {
 					this.forEachFeature(
@@ -1241,7 +1236,7 @@ function editorButton(id, snapLayers) {
 		setMode(true); // On referme le mode création de ligne
 	});
 	source.on(['change'], function() {
-		//TODO bug quand drag pour joindre
+		//TODO BUG quand drag pour joindre
 		stickLines();
 		// Save lines in <EL> as geoJSON at every change
 		el.textContent = format.writeFeatures(source.getFeatures(), {
@@ -1274,15 +1269,15 @@ function editorButton(id, snapLayers) {
 					cs[s].push([c1[2 * i], c1[2 * i + 1]]);
 
 			// On dessine les 2 bouts de lignes
-			//TODO for (var f = 0; f < cs.length; f++)
+			//TODO BEST for (var f = 0; f < cs.length; f++)
 			for (var f in cs)
 				if (cs[f].length > 1) // s'ils ont au moins 2 points
 					source.addFeature(new ol.Feature({
 						geometry: new ol.geom.LineString(cs[f])
 					}));
-			}	
-map.dispatchEvent('zzzz');//TODO BUG hover reste aprés destruction d'un segment ou une ligne
-		});
+		}
+		map.dispatchEvent('zzzz'); //TODO BUG hover reste aprés destruction d'un segment ou une ligne
+	});
 
 	// Joint les lignes ayant un bout identique
 	function stickLines() {
@@ -1290,7 +1285,7 @@ map.dispatchEvent('zzzz');//TODO BUG hover reste aprés destruction d'un segment
 			lines = [];
 
 		// On fait un grand tableau avec tous les lines
-//TODO for (var f = 0; f < features.length; f++) {
+		//TODO BEST for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
 			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
 				coordinates = []; // On va les remettre en tableau de lonlat
@@ -1310,8 +1305,8 @@ map.dispatchEvent('zzzz');//TODO BUG hover reste aprés destruction d'un segment
 
 		// On recherche 2 lines ayant le même premier bout
 		for (var m in lines) {
-//TODO for (var m = 0; m < lines.length; m++) {
-			var found = lines.find(function(event) { //TODO IE ne supporte pas find
+			//TODO BEST for (var m = 0; m < lines.length; m++) {
+			var found = lines.find(function(event) { //TODO BUG IE ne supporte pas find
 				if (event.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
 				if (event.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
 				if (event.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
