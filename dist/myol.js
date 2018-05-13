@@ -745,9 +745,9 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 	displayLL(ol.proj.fromLonLat(ll));
 
 	// <input> coords edition
-	layer.edit = function(event, nol, projection) {
+	layer.edit = function(e, nol, projection) {
 		var coord = ol.proj.transform(point.getCoordinates(), 'EPSG:3857', 'EPSG:' + projection); // La position actuelle du marqueur
-		coord[nol] = parseFloat(event.value); // On change la valeur qui a été modifiée
+		coord[nol] = parseFloat(e.value); // On change la valeur qui a été modifiée
 		point.setCoordinates(ol.proj.transform(coord, 'EPSG:' + projection, 'EPSG:3857')); // On repositionne le marqueur
 	}
 
@@ -815,8 +815,8 @@ function permalink(options) {
 	return controlButton('&infin;', {
 		title: 'Permalien',
 		invisible: options.invisible,
-		render: function(event) {
-			var view = event.map.getView();
+		render: function(e) {
+			var view = e.map.getView();
 
 			// Set the map at permalink position
 			if (options.init != false && // If use hash & cookies
@@ -837,7 +837,7 @@ function permalink(options) {
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 							inputs[i].value == decodeURI(params[3]);
-					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+					e.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
 					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
@@ -849,9 +849,9 @@ function permalink(options) {
 				Math.round(ll4326[0] * 100000) / 100000,
 				Math.round(ll4326[1] * 100000) / 100000
 			];
-			event.map.getLayers().forEach(function(event) {
-				if (event.getVisible() && event.name_)
-					params[3] = encodeURI(event.name_);
+			e.map.getLayers().forEach(function(e) {
+				if (e.getVisible() && e.name_)
+					params[3] = encodeURI(e.name_);
 			});
 
 			// Mem position in a cookie
@@ -896,9 +896,9 @@ function controlLayers(baseLayers, overLayers) {
 	// When the map is created & rendered
 	var map;
 
-	function render(event) {
+	function render(e) {
 		if (!selectorElement.childElementCount) { // Only the first time
-			map = event.map; // Take occasion to mem the map reference !
+			map = e.map; // Take occasion to mem the map reference !
 
 			// Base layers selector init
 			for (var name in baseLayers) {
@@ -939,10 +939,10 @@ function controlLayers(baseLayers, overLayers) {
 			});
 
 			// Leaving the map close the selector
-			window.addEventListener('mousemove', function(event) {
+			window.addEventListener('mousemove', function(e) {
 				var divRect = map.getTargetElement().getBoundingClientRect();
-				if (event.clientX < divRect.left || event.clientX > divRect.right ||
-					event.clientY < divRect.top || event.clientY > divRect.bottom)
+				if (e.clientX < divRect.left || e.clientX > divRect.right ||
+					e.clientY < divRect.top || e.clientY > divRect.bottom)
 					displayLayerSelector(false);
 			}, false);
 		}
@@ -952,20 +952,20 @@ function controlLayers(baseLayers, overLayers) {
 		checkedBaseLayers = []; // Les layers sélectionnés (dans l'ordre de baseLayers)
 
 	// Click on a check mark
-	function checkLayer(event) {
+	function checkLayer(e) {
 		var selectorInputs = selectorElement.getElementsByTagName('input');
 		checkedBaseLayers = [];
 		for (var l = 0; l < Object.keys(baseLayers).length; l++) {
-			if (event.target.checked &&
-				((!event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) ||
+			if (e.target.checked &&
+				((!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) ||
 					selectorInputs[l].value != currentBaseLayerName))
-				selectorInputs[l].checked = event.target.value == selectorInputs[l].value;
+				selectorInputs[l].checked = e.target.value == selectorInputs[l].value;
 
 			if (selectorInputs[l].checked)
 				checkedBaseLayers.push(baseLayers[selectorInputs[l].value]);
 		}
 
-		currentBaseLayerName = event.target.value; // Mémorise pour la prochaine fois
+		currentBaseLayerName = e.target.value; // Mémorise pour la prochaine fois
 		rangeElement.value = 50; // Remet le curseur au centre à chaque nouvelle sélection
 		displayLayerSelector(true);
 	}
@@ -1013,7 +1013,7 @@ function buttonGPS() {
 			style: style_
 		});
 
-	// Interface avec le GPS système	
+	// Interface with the system GPS
 	var geolocation = new ol.Geolocation();
 	geolocation.on('error', function(error) {
 		alert('Geolocation error: ' + error.message);
@@ -1022,10 +1022,10 @@ function buttonGPS() {
 	var active = false,
 		bouton = controlButton('G', {
 			title: 'Centrer sur la position GPS',
-			action: function(event) {
+			action: function(e) {
 				active ^= 1; // Bascule on/off
-				event.target.style.color = active ? 'black' : 'white'; // Colore le bouton
-				geolocation.setTracking(active); // Active / désactive
+				e.target.style.color = active ? 'black' : 'white'; // Color button
+				geolocation.setTracking(active); // Turn on / off
 				if (active)
 					bouton.getMap().addLayer(layer);
 				else
@@ -1043,7 +1043,7 @@ function buttonGPS() {
 }
 
 /**
- * Contrôle qui affiche la longueur d'une ligne survolée
+ * Control that displays the length of a line overflown
  */
 ol.control.LengthLine = function(opt_options) {
 	var options = opt_options ? opt_options : {};
@@ -1051,58 +1051,44 @@ ol.control.LengthLine = function(opt_options) {
 	ol.control.MousePosition.call(this, options); //HACK reuse of an existing control
 };
 ol.inherits(ol.control.LengthLine, ol.control.MousePosition);
-ol.control.LengthLine.prototype.updateHTML_ = function() {}; //HACK Inhibe l'affichage de MousePosition
-
-var zzzz1, zzzz2;
+ol.control.LengthLine.prototype.updateHTML_ = function() {}; //HACK Inhibits the MousePosition display
 
 ol.control.LengthLine.prototype.setMap = function(map) {
 	ol.control.MousePosition.prototype.setMap.call(this, map); //HACK
-	var element = this.element;
 
-	var mip = new ol.interaction.Select({
-		condition: ol.events.condition.pointerMove,
-		hitTolerance: 3,
-		filter: function(f) { //HACK
-			var length = ol.Sphere.getLength(f.getGeometry());
-			if (length >= 100000)
-				element.innerHTML = (Math.round(length / 1000)) + ' km';
-			else if (length >= 10000)
-				element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-			else if (length >= 1000)
-				element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-			else if (length >= 1)
-				element.innerHTML = (Math.round(length)) + ' m';
-			return length; // Continue hover if line
-		}
-	});
-	map.addInteraction(mip);
+	var element = this.element,
+		interaction = new ol.interaction.Select({
+			condition: ol.events.condition.pointerMove,
+			hitTolerance: 5,
+			filter: function(f) {
+				var length = ol.Sphere.getLength(f.getGeometry());
+				if (length >= 100000)
+					element.innerHTML = (Math.round(length / 1000)) + ' km';
+				else if (length >= 10000)
+					element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+				else if (length >= 1000)
+					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+				else if (length >= 1)
+					element.innerHTML = (Math.round(length)) + ' m';
+				return length; // Continue hover if we are above a line
+			}
+		});
 
-	// Clear the counter when move out from the feature
-	var mip2 = new ol.interaction.Select({
-		condition: ol.events.condition.pointerMove,
-		hitTolerance: 8,
-		filter: function(f) {
-			return ol.Sphere.getLength(f.getGeometry()) > 0; // Uniquement les lignes
-		}
+	map.on(['changed'], function() { // Momentary hide hover if anything has changed
+		map.removeInteraction(interaction);
+		element.innerHTML = null;
 	});
-	ol.events.listen(
-		mip2.getFeatures(),
-		ol.CollectionEventType.REMOVE,
-		function() {
+	map.on(['pointermove'], function(e) {
+		var actif = interaction.getMap();
+		if (map.getFeaturesAtPixel(e.pixel, 5)) {
+			if (!actif)
+				map.addInteraction(interaction);
+		} else {
 			element.innerHTML = null;
+			if (actif)
+				map.removeInteraction(interaction);
 		}
-	);
-	//map.addInteraction(mip2);
-
-	map.on(['zzzzs'], function() {
-		map.removeInteraction(mip);
-		map.addInteraction(mip);
-		map.removeInteraction(mip2);
-		map.addInteraction(mip2);
-		map.renderSync();
 	});
-	zzzz1 = mip;
-	zzzz2 = mip2;
 };
 
 /**
@@ -1112,7 +1098,7 @@ function controlsCollection() {
 	return [
 		new ol.control.Zoom(),
 		new ol.control.Attribution({
-			collapsible: false // Attribution toujours ouverte
+			collapsible: false // Attribution always open
 		}),
 		//TODO BUG fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
 		//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
@@ -1136,7 +1122,7 @@ function controlsCollection() {
 		new Geocoder('nominatim', {
 			provider: 'osm',
 			lang: 'FR',
-			placeholder: 'Recherche par nom' // Initialisation du champ de saisie
+			placeholder: 'Recherche par nom' // Initialization of the input field
 		}),
 		buttonGPS(),
 		controlButton('&equiv;', {
@@ -1177,7 +1163,8 @@ function editorButton(id, snapLayers) {
 			modify: new ol.interaction.Modify({
 				source: source,
 				deleteCondition: function(e) {
-					return ol.events.condition.altKeyOnly(e) && ol.events.condition.click(e); //HACK parceque le système ne donne pas singleClick
+					return ol.events.condition.altKeyOnly(e) && ol.events.condition.click(e); //HACK because the system don't trig singleClick
+
 				}
 			}),
 			draw: new ol.interaction.Draw({
@@ -1233,28 +1220,30 @@ function editorButton(id, snapLayers) {
 		map.addInteraction(interactions.snap);
 	}
 	interactions.draw.on(['drawend'], function(e) {
-		setMode(true); // On referme le mode création de ligne
+		setMode(true); // We close the line creation mode
 	});
-	source.on(['change'], function() {
-		//TODO BUG quand drag pour joindre
+	source.on(['addfeature'], function(e) {
 		stickLines();
+	});
+	source.on(['change'], function(e) {
 		// Save lines in <EL> as geoJSON at every change
 		el.textContent = format.writeFeatures(source.getFeatures(), {
 			featureProjection: 'EPSG:3857'
 		});
+		map.dispatchEvent('changed'); //HACK Reset hover if any
 	});
 
-	// Supprime une ligne, un segment et coupe une ligne en 2
-	interactions['modify'].on('modifyend', function(event) {
-		// On récupère la liste des features visés
-		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
+	// Removes a line, a segment, and breaks a line in 2
+	interactions.modify.on('modifyend', function(e) {
+		// We retrieve the list of targeted features
+		var features = e.mapBrowserEvent.map.getFeaturesAtPixel(e.mapBrowserEvent.pixel, {
 			hitTolerance: 5
 		});
-		if (features.length > 1 && // S'il y a bien quelque chose là
-			event.mapBrowserEvent.type == 'pointerup')
-			if (ol.events.condition.altShiftKeysOnly(event.mapBrowserEvent))
+		if (features.length > 1 && // If there is anything there
+			e.mapBrowserEvent.type == 'pointerup')
+			if (ol.events.condition.altShiftKeysOnly(e.mapBrowserEvent))
 				source.removeFeature(features[1]); // On supprime la ligne
-			else if (ol.events.condition.altKeyOnly(event.mapBrowserEvent)) {
+			else if (ol.events.condition.altKeyOnly(e.mapBrowserEvent)) {
 			source.removeFeature(features[1]); // On enlève la ligne existante
 
 			var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
@@ -1276,7 +1265,7 @@ function editorButton(id, snapLayers) {
 						geometry: new ol.geom.LineString(cs[f])
 					}));
 		}
-		map.dispatchEvent('zzzz'); //TODO BUG hover reste aprés destruction d'un segment ou une ligne
+		stickLines();
 	});
 
 	// Joint les lignes ayant un bout identique
@@ -1306,10 +1295,10 @@ function editorButton(id, snapLayers) {
 		// On recherche 2 lines ayant le même premier bout
 		for (var m in lines) {
 			//TODO BEST for (var m = 0; m < lines.length; m++) {
-			var found = lines.find(function(event) { //TODO BUG IE ne supporte pas find
-				if (event.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
-				if (event.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
-				if (event.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
+			var found = lines.find(function(e) { //TODO BUG IE ne supporte pas find
+				if (e.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
+				if (e.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
+				if (e.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
 				return true;
 			});
 
