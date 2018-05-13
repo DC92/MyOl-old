@@ -20,6 +20,7 @@
 //TODO Harmoniser buttonXxxx yyyElement ...
 //TODO Site off line, application
 //TODO traduire commentaires en 1 seule langue (UK ?)
+//TODO impression full format page
 
 /**
  * Ajoute onAdd_(map) aux layers
@@ -34,8 +35,8 @@ var formerLayerBase = ol.layer.Base;//HACK
 ol.layer.Base = function(options) { // Overwrite ol.layer
 	formerLayerBase.call(this, options); // Call former method
 
-//TODO	Line 32617: ol.Overlay.prototype.setMap = function(map) {
-//TODO	Line 85291: ol.layer.Layer.prototype.setMap);
+//TODO Line 32617: ol.Overlay.prototype.setMap = function(map) {
+//TODO Line 85291: ol.layer.Layer.prototype.setMap);
 	this.onAdd_ = function(map) { // Private function called by ol.Map.addLayer
 		// onAdd layer option
 		if (typeof options.onAdd == 'function')
@@ -668,7 +669,7 @@ function overpassLayer(request) {
  */
 function overlaysCollection() {
 	return {
-		//TODO	OverPass: overpassLayer(),
+		//TODO OverPass: overpassLayer(),
 		Chemineur: chemineurLayer(),
 		Massifs: massifsWriLayer(),
 		WRI: pointsWriLayer()
@@ -1049,7 +1050,9 @@ ol.control.LengthLine = function(opt_options) {
 	ol.control.MousePosition.call(this, options); //HACK reuse of an existing control
 };
 ol.inherits(ol.control.LengthLine, ol.control.MousePosition);
-ol.control.LengthLine.prototype.updateHTML_ = function() {}; // Inhibe l'affichage de MousePosition
+ol.control.LengthLine.prototype.updateHTML_ = function() {}; //HACK Inhibe l'affichage de MousePosition
+
+var zzzz1, zzzz2;
 
 ol.control.LengthLine.prototype.setMap = function(map) {
 	ol.control.MousePosition.prototype.setMap.call(this, map); //HACK
@@ -1092,6 +1095,8 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 			}
 		);
 		map.addInteraction(mip2);
+zzzz1 = mip;
+zzzz2 = mip2;
 	}
 };
 
@@ -1112,7 +1117,7 @@ function controlsCollection() {
 			tipLabel: 'Plein écran'
 		}),
 		new ol.control.ScaleLine(),
-		new ol.control.LengthLine(),
+//zzzz		new ol.control.LengthLine(),
 		new ol.control.MousePosition({
 			coordinateFormat: ol.coordinate.createStringXY(5),
 			projection: 'EPSG:4326',
@@ -1172,7 +1177,7 @@ function editorButton(id, snapLayers) {
 			modify: new ol.interaction.Modify({
 				source: source,
 				deleteCondition: function(e) {
-					return e.originalEvent.ctrlKey && ol.events.condition.click(e); //HACK parceque le système ne donne pas singleClick
+					return ol.events.condition.altKeyOnly(e) && ol.events.condition.click(e); //HACK parceque le système ne donne pas singleClick
 				}
 			}),
 			draw: new ol.interaction.Draw({
@@ -1186,9 +1191,9 @@ function editorButton(id, snapLayers) {
 				"Click sur E pour ajouter ou étendre une ligne, doubleclick pour finir\n" +
 				"Click sur un sommet puis déplacer pour modifier\n" +
 				"Click sur un segment puis déplacer pour créer un sommet\n" +
-				"Ctrl+click sur un sommet pour le supprimer\n" +
-				"Ctrl+click sur un segment pour le supprimer et couper la ligne\n" +
-				"Alt+click sur une ligne pour la supprimer",
+				"Alt+click sur un sommet pour le supprimer\n" +
+				"Alt+click sur un segment pour le supprimer et couper la ligne\n" +
+				"Shift+Alt+click sur une ligne pour la supprimer",
 			action: function() {
 				setMode(editMode ^= 1); // Alternately switch modes
 			}
@@ -1206,7 +1211,7 @@ function editorButton(id, snapLayers) {
 
 		// Snap on features external to the editor
 		if (snapLayers)
-			//TODO		for (var s = 0; s < snapLayers.length; s++)
+			//TODO for (var s = 0; s < snapLayers.length; s++)
 			for (var s in snapLayers)
 				snapLayers[s].getSource().on('change', function() {
 					this.forEachFeature(
@@ -1229,6 +1234,7 @@ function editorButton(id, snapLayers) {
 		if (editMode) {
 			map.addInteraction(interactions.modify);
 			//HACK interactions.hover blocks the zoom if in duplicate with ol.control.LengthLine !!!
+if(0)//zzzz
 			if (!document.getElementsByClassName('ol-length-line').length)
 				map.addInteraction(interactions.hover);
 		} else { // Insert new line mode
@@ -1237,85 +1243,52 @@ function editorButton(id, snapLayers) {
 		// Common interactions
 		map.addInteraction(interactions.snap);
 	}
-
 	interactions.draw.on(['drawend'], function(e) {
 		setMode(true); // On referme le mode création de ligne
 	});
 	source.on(['change'], function() {
-		//TODO		stickLines();
+		//TODO stickLines();
 		// Save lines in <EL> as geoJSON at every change
 		el.textContent = format.writeFeatures(source.getFeatures(), {
 			featureProjection: 'EPSG:3857'
 		});
 	});
 
-	interactions.modify.on('modifyend', function(e) {
+	// Supprime un segment et coupe une ligne en 2
+	interactions['modify'].on('modifyend', function(event) {
 		// On récupère la liste des features visés
-		var features = map.getFeaturesAtPixel(e.mapBrowserEvent.pixel, {
+		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
 			hitTolerance: 5
 		});
-		if (e.mapBrowserEvent.originalEvent.altKey)
-			// Supprime une ligne
-			source.removeFeature(features[1]);
-			//TODO voir comment clearer hover
-		else if (e.mapBrowserEvent.originalEvent.ctrlKey) {
-			// Supprime un segment et coupe une ligne en 2
-/*DCMM*/{var _v=features,_r='';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
+		if (features.length > 1 && // S'il y a bien quelque chose là
+			event.mapBrowserEvent.type == 'pointerup')
+			if (ol.events.condition.altShiftKeysOnly(event.mapBrowserEvent))
+				source.removeFeature(features[1]); // On supprime la ligne
+			else if (ol.events.condition.altKeyOnly(event.mapBrowserEvent)) {
+			source.removeFeature(features[1]); // On enlève la ligne existante
+
+			var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
+				c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
+				cs = [
+					[],
+					[]
+				], // Les coordonnées des 2 segments découpés
+				s = 0;
+			for (i = 0; i < c1.length / 2; i++)
+				// Si on a trouvé le point de coupure
+				if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
+					s++; // On le saute et on incrémente le compteur de segment
+				else // On ajoute le point courant
+					cs[s].push([c1[2 * i], c1[2 * i + 1]]);
+
+			// On dessine les 2 bouts de lignes
+			//TBD for (var f = 0; f < cs.length; f++)
+			for (var f in cs)
+				if (cs[f].length > 1) // s'ils ont au moins 2 points
+					source.addFeature(new ol.Feature({
+						geometry: new ol.geom.LineString(cs[f])
+					}));
 		}
 	});
-//	if (e.mapBrowserEvent.type == 'pointerup'); {
-	/*
-	removeInteraction = new ol.interaction.Select({
-		layers: [layer],
-		hitTolerance: 5,
-		condition: function(event) {
-			// Un click supprime les features pointés
-			if (event.type == 'pointerdown') {
-				var features = this.getFeatures();
-				for (var i = 0, f; f = features.item(i); i++)
-					source.removeFeature(f);
-				features.clear();
-			}
-			return true; // Continue les actions (hover, ...)
-		}
-	}),*/
-
-		/*
-						var features = this.getFeatures();
-				for (var i = 0, f; f = features.item(i); i++)
-					source.removeFeature(f);
-				features.clear();
-
-		
-		
-					// En théorie, on doit sélectionner au moins 2 features :
-					if (features.length > 1) {
-						var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
-							c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
-							cs = [[],[]], // Les coordonnées des 2 segments découpés
-							s = 0;
-						for (i = 0; i < c1.length / 2; i++)
-							// Si on a trouvé le point de coupure, on le saute et on incrémente le compteur de segment
-							if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
-								s++;
-							else // On ajoute le point courant
-								cs[s].push([c1[2 * i], c1[2 * i + 1]]);
-
-						// On enlève la ligne existante
-						source.removeFeature(features[1]);
-
-						// On dessine les 2 lines de lignes
-		//TODO				for (var f = 0; f < cs.length; f++)
-						for (var f in cs)
-							if (cs[f].length > 1) // s'ils ont au moins 2 points
-								source.addFeature(new ol.Feature({
-									geometry: new ol.geom.LineString(cs[f])
-								}));
-					}
-		*/
-//	}
-//////////////////////////////////////////////////
-
-
 	return bouton;
 }
