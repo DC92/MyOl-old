@@ -7,7 +7,6 @@
 //******************************************************************************
 
 //TODO TODO impression full format page
-//TODO taille de la carte dépend de ???
 //TODO TODO upload, download GPX 
 //	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
 //	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
@@ -45,7 +44,6 @@ ol.layer.Base = function(options) { // Overwrite ol.layer
 			options.onAdd.call(this, map);
 
 		// Hover layer option
-		//TODO BEST mettre le hover autre part qu'en général !!
 		if (options.hover) {
 			var hoverInteraction = new ol.interaction.Select({
 				layers: [this],
@@ -1093,6 +1091,19 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 };
 
 /**
+ * HACK to prevent wrong full screen size with Chrome on Windows
+ */
+var formerHandleFullScreenChange = ol.control.FullScreen.prototype.handleFullScreenChange_;
+ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
+	formerHandleFullScreenChange.call(this);
+	var el = this.getMap().getTargetElement();
+	el.style.height =
+		el.style.width =
+		ol.control.FullScreen.isFullScreen() ? '100%' : null;
+};
+//TODO TEST full screen limité en hauteur (mobile, ...)
+
+/**
  * Controls examples
  */
 function controlsCollection() {
@@ -1101,8 +1112,6 @@ function controlsCollection() {
 		new ol.control.Attribution({
 			collapsible: false // Attribution always open
 		}),
-		//TODO BUG fullscreen / pas toute la page ! / les icones ne sont pas où est le hover
-		//TODO BUG full screen limité en hauteur (chrome, mobile, ...)
 		new ol.control.FullScreen({
 			label: '\u21d4',
 			labelActive: '\u21ce',
@@ -1136,7 +1145,7 @@ function controlsCollection() {
 }
 
 /**
- * Editeur de lignes
+ * Line Editor
  */
 function editorButton(id, snapLayers) {
 	var map,
@@ -1241,78 +1250,79 @@ function editorButton(id, snapLayers) {
 			hitTolerance: 5
 		});
 		if (features.length > 1 && // If there is anything there
-			e.mapBrowserEvent.type == 'pointerup')
+			e.mapBrowserEvent.type == 'pointerup') {
 			if (ol.events.condition.altShiftKeysOnly(e.mapBrowserEvent))
-				source.removeFeature(features[1]); // On supprime la ligne
-			else if (ol.events.condition.altKeyOnly(e.mapBrowserEvent)) {
-			source.removeFeature(features[1]); // On enlève la ligne existante
+				source.removeFeature(features[1]); // We delete the line
+			else
+			if (ol.events.condition.altKeyOnly(e.mapBrowserEvent)) {
+				source.removeFeature(features[1]); // We also delete the line
 
-			var c0 = features[0].getGeometry().flatCoordinates, // Les coordonnées du marqueur du point de coupure
-				c1 = features[1].getGeometry().flatCoordinates, // les coordonnées des sommets de la ligne à couper
-				cs = [[],[]], //B[[],[]] Les coordonnées des 2 segments découpés
-				s = 0;
-			for (i = 0; i < c1.length / 2; i++)
-				// Si on a trouvé le point de coupure
-				if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
-					s++; // On le saute et on incrémente le compteur de segment
-				else // On ajoute le point courant
-					cs[s].push([c1[2 * i], c1[2 * i + 1]]);
+				var c0 = features[0].getGeometry().flatCoordinates, // The coordinates of the cut point marker
+					c1 = features[1].getGeometry().flatCoordinates, // The coordinates of the vertices of the line to be cut
+					cs = [[],[]], //B[[],[]] // The coordinates of the 2 cut segments
+					s = 0;
+				for (i = 0; i < c1.length / 2; i++)
+					// If we found the cutoff point
+					if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
+						s++; // We skip it and increment the segment counter
+					else // We add the current point
+						cs[s].push([c1[2 * i], c1[2 * i + 1]]);
 
-			// On dessine les 2 bouts de lignes
-			//TODO BEST for (var f = 0; f < cs.length; f++)
-			for (var f in cs)
-				if (cs[f].length > 1) // s'ils ont au moins 2 points
-					source.addFeature(new ol.Feature({
-						geometry: new ol.geom.LineString(cs[f])
-					}));
+				// We draw the 2 ends of lines
+				//TODO BEST for (var f = 0; f < cs.length; f++)
+				for (var f in cs)
+					if (cs[f].length > 1) // If they have at least 2 points
+						source.addFeature(new ol.Feature({
+							geometry: new ol.geom.LineString(cs[f])
+						}));
+			}
 		}
 		stickLines();
 	});
 
-	// Joint les lignes ayant un bout identique
+	// Join lines with identical ends
 	function stickLines() {
 		var features = source.getFeatures(),
 			lines = [];
 
-		// On fait un grand tableau avec toutes les lignes
+		// We make a big table with all the lines
 		//TODO BEST for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
-			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
-				coordinates = []; // On va les remettre en tableau de lonlat
+			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL provides coordinates in the same table level, lon & lat mixed
+				coordinates = []; // We will put them back in lonlat chart
 			for (var c = 0; c < flatCoordinates.length / 2; c++)
 				coordinates.push(flatCoordinates.slice(c * 2, c * 2 + 2));
 
-			// Dans chacun des sens
+			// In both senses
 			for (var i = 0; i < 2; i++) {
 				lines.push({
 					indexFeature: f,
-					premier: coordinates[0], // Le premier point
-					suite: coordinates.slice(1) // Les autres points
+					premier: coordinates[0], // The first point
+					suite: coordinates.slice(1) // The other points
 				});
-				coordinates = coordinates.reverse(); // Et on recommence dans l'autre sens
+				coordinates = coordinates.reverse(); // And we redo the other way
 			}
 		}
 
-		// On recherche 2 lignes ayant le même premier bout
+		// We are looking for 2 lines with the same first end
 		for (var m in lines) {
 			var found = lines.filter(function(e) {
-				if (e.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
-				if (e.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
-				if (e.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
-				return true;
+				return e.indexFeature != lines[m].indexFeature && // Not the same piece!
+					e.premier[0] == lines[m].premier[0] && // X of the first points is the same
+					e.premier[1] == lines[m].premier[1]; // Y of the first points is the same
 			})[0];
 
-			// On en a trouvé au moins une paire
+			// We found at least one pair
 			if (typeof found == 'object') {
-				// On supprime les 2 lines
+				// We delete the 2 lines
 				source.removeFeature(features[found.indexFeature]);
 				source.removeFeature(features[lines[m].indexFeature]);
 
-				// On en rajoute un en recollant les 2 bouts
+				// We add one by gluing the 2 ends
 				source.addFeature(new ol.Feature({
 					geometry: new ol.geom.LineString(found.suite.reverse().concat([found.premier]).concat(lines[m].suite))
 				}));
-				return stickLines(); // On recommence au début
+				return stickLines(); // Restart at the beginning
 			}
 		}
 	}
