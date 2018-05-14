@@ -7,6 +7,7 @@
 //******************************************************************************
 
 //TODO TODO impression full format page
+//TODO taille de la carte dépend de ???
 //TODO TODO upload, download GPX 
 //	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
 //	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
@@ -200,9 +201,9 @@ function incompleteTileLayer(extent, sources) {
 
 		// Search for sources according to the map resolution
 		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).find(function(e) { //TODO BUG IE ne gére pas find
+			resolution = Object.keys(sources).filter(function(e) {
 				return e > view.getResolution();
-			});
+			})[0];
 
 		// Update layer if necessary
 		if (layer.getSource() != sources[resolution])
@@ -1273,7 +1274,7 @@ function editorButton(id, snapLayers) {
 		var features = source.getFeatures(),
 			lines = [];
 
-		// On fait un grand tableau avec tous les lines
+		// On fait un grand tableau avec toutes les lignes
 		//TODO BEST for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
 			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL fournit les coordonnées dans un même niveau de tableau, lon & lat mélangés
@@ -1292,15 +1293,14 @@ function editorButton(id, snapLayers) {
 			}
 		}
 
-		// On recherche 2 lines ayant le même premier bout
+		// On recherche 2 lignes ayant le même premier bout
 		for (var m in lines) {
-			//TODO BEST for (var m = 0; m < lines.length; m++) {
-			var found = lines.find(function(e) { //TODO BUG IE ne supporte pas find
+			var found = lines.filter(function(e) {
 				if (e.indexFeature == lines[m].indexFeature) return false; // C'était le même morceau !
 				if (e.premier[0] != lines[m].premier[0]) return false; // X des premiers points n'est pas pareil
 				if (e.premier[1] != lines[m].premier[1]) return false; // Y des premiers points n'est pas pareil
 				return true;
-			});
+			})[0];
 
 			// On en a trouvé au moins une paire
 			if (typeof found == 'object') {

@@ -19,11 +19,17 @@
 	<!-- My Openleyers -->
 	<link  href="dist/myol.css" type="text/css" rel="stylesheet">
 	<script src="dist/myol.js" type="text/javascript"></script>
+	<style>
+		#map {
+			height: 100%;
+			width: 100%;
+		}
+	</style>
 </head>
 <body>
 	<!--input id="range" type="range" min="0" max="100" value="50" oninput="layerSelection()" /-->
 
-	<div id="map" class="map"></div>
+	<div id="map"></div>
 	<div id="lonlat"></div>
 	<div id="edit-lonlat"></div>
 	<!--select multiple="multiple" class="layerselect" id="layer-select" style="overflow-y:hidden" onchange="layerSelection()"></select-->
