@@ -17,7 +17,7 @@
 	<script src="proj4js-dist/proj4.js"></script>
 
 	<!-- My Openleyers -->
-	<link  href="dist/myol.css" type="text/css" rel="stylesheet">
+	<link  href="myol.css" type="text/css" rel="stylesheet">
 	<script src="dist/myol.js" type="text/javascript"></script>
 	<style>
 		#map {
@@ -72,9 +72,9 @@
 		map.addControl(controlLayers(layers, overlays));
 		map.addLayer(marqueur(
 			'data:image/svg+xml;utf8,' +
-				'<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" ' +
+				'<svg xmlns="http://www.w3.org/2000/svg" width="31" height="43" ' +
 				'style="stroke-width:4;stroke:rgb(255,0,0,.5);fill:rgb(0,0,0,0)">' +
-				'<rect width="30" height="42" />' +
+				'<rect width="31" height="43" />' +
 				'</svg>',
 			[-.575, 44.845],
 			'lonlat',
@@ -97,7 +97,7 @@
 				'<br/>Y <input type="text" onchange="viseur.edit(this,1,21781)" size="12" maxlength="12" value="{3}"/>'
 			],
 			'edit'));
-		map.addControl(editorButton('geojson', overlays));
+//DCCM		map.addControl(editorButton('geojson', overlays));
 	</script>
 </body>
 </html>

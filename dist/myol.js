@@ -1,11 +1,12 @@
 //******************************************************************************
 // OPENLAYERS V4 ADAPTATION - https://openlayers.org/
-// (C) Dominique Cavailhez 2017 - https://github.com/Dominique92
+// (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
 //
 // Code & all tiled layers use EPSG:3857 spherical mercator projection
 // Each feature is included in a single function that you can include separately
 //******************************************************************************
 
+//TODO BUG : survol petits massifs n'affiche pas le titre
 //TODO TODO impression full format page
 //TODO TODO upload, download GPX 
 //	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
@@ -19,65 +20,19 @@
 //TODO BEST Superzoom
 //TODO BEST Harmoniser buttonXxxx yyyElement ...
 //TODO BEST Site off line, application
+//TODO BEST reprende les variables en une seule lettre : e,
 
 //TODO TEST mobiles ! boutons trop grand ou trop pres
 //TODO TEST https
 
 /**
- * Ajoute onAdd_(map) aux layers
+ * HACK Call onAdd(map) on layers added to a map
  */
-var formerMapAddLayer = ol.Map.prototype.addLayer; //HACK
-ol.Map.prototype.addLayer = function(layer) { // Overwrite ol.Map.addLayer
-	formerMapAddLayer.call(this, layer); // Call former method
-	layer.onAdd_(this); // Call ol.layer function
-};
+ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
+	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method
 
-var formerLayerBase = ol.layer.Base; //HACK
-ol.layer.Base = function(options) { // Overwrite ol.layer
-	formerLayerBase.call(this, options); // Call former method
-
-	//TODO BEST Line 32617: ol.Overlay.prototype.setMap = function(map) {
-	//TODO BEST Line 85291: ol.layer.Layer.prototype.setMap);
-	this.onAdd_ = function(map) { // Private function called by ol.Map.addLayer
-		// onAdd layer option
-		if (typeof options.onAdd == 'function')
-			options.onAdd.call(this, map);
-
-		// Hover layer option
-		if (options.hover) {
-			var hoverInteraction = new ol.interaction.Select({
-				layers: [this],
-				condition: ol.events.condition.pointerMove,
-				style: function(feature) {
-					// Change pointer while hovering a clicable feature
-					if (options.click)
-						map.getViewport().style.cursor = 'pointer';
-
-					// Get the hover sytle
-					return typeof options.hover == 'function' ?
-						options.hover(feature) :
-						options.hover;
-				}
-			});
-			// Get back the basic pointer when move out from the feature
-			ol.events.listen(
-				hoverInteraction.getFeatures(),
-				ol.CollectionEventType.REMOVE,
-				function() {
-					map.getViewport().style.cursor = 'auto';
-				}
-			);
-			map.addInteraction(hoverInteraction);
-		}
-
-		// Click layer option
-		if (options.click)
-			map.addInteraction(new ol.interaction.Select({
-				layers: [this],
-				condition: ol.events.condition.singleClick,
-				style: options.click
-			}));
-	}
+	if (typeof layer.onAdd == 'function')
+		layer.onAdd(this); // Call ol.layer function
 };
 
 //***************************************************************
@@ -179,18 +134,17 @@ function ignLayer(key, layer, format) {
  * displays blank outside the area of validity
  */
 function incompleteTileLayer(extent, sources) {
-	var map, view,
-		layer = new ol.layer.Tile({
-			onAdd: function(m) {
-				map = m;
-				view = map.getView();
-				view.on('change', change);
-				change(); // At init
-			}
-		}),
+	var layer = new ol.layer.Tile(),
+		map, view,
 		backgroundSource = new ol.source.Stamen({
 			layer: 'terrain'
 		});
+	layer.onAdd = function(m) {
+		map = m;
+		view = map.getView();
+		view.on('change', change);
+		change(); // At init
+	};
 
 	// Zoom has changed
 	function change() {
@@ -348,42 +302,78 @@ function layersCollection(keys) {
 // VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
 /**
- * BBOX limited strategy
- * Same that bbox but reloads if we zoom in because more points can be under the limit
- * return {ol.loadingstrategy} to be used in layer definition
- */
-ol.loadingstrategy.bboxLimited = function(extent, resolution) { // === bbox
-	if (this.resolution != resolution) // Force loading when zoom in
-		this.clear();
-	this.resolution = resolution;
-	return [extent];
-};
-
-/**
  * GeoJson POI layer
  */
 function geoJsonLayer(options) {
-	return new ol.layer.Vector(ol.obj.assign({
-		source: new ol.source.Vector({
-			url: function(extent, resolution, projection) {
-				return options.url + '&bbox=' +
-					ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326').join(',');
-			},
-			format: new ol.format.GeoJSON(),
-			strategy: ol.loadingstrategy.bboxLimited
-		}),
-		style: function(feature) {
-			return new ol.style.Style({
+	var map, actual_resolution,
+		layer = new ol.layer.Vector({
+			source: new ol.source.Vector({
+				strategy: function(extent, resolution) { // Force loading when zoom in / out (for bbox)
+					if (actual_resolution != resolution)
+						this.clear();
+					actual_resolution = resolution;
+					return [extent];
+				},
+				url: function(extent, resolution, projection) {
+					return options.url + '&bbox=' +
+						ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326').join(',');
+				},
+				format: new ol.format.GeoJSON()
+			}),
+			style: typeof options.style != 'function' ?
+				ol.style.Style.defaultFunction : function(feature) {
+					return new ol.style.Style(options.style(feature.getProperties()));
+				}
+		});
+
+	var map;
+	layer.onAdd = function(m) {
+		map = m;
+
+		if (typeof options.hover == 'function')
+			map.addInteraction(new ol.interaction.Select({
+				layers: [layer],
+				condition: ol.events.condition.pointerMove,
+				style: function(feature) {
+					// Change pointer while hovering a clicable feature
+					if (options.click)
+						map.getViewport().style.cursor = 'pointer';
+
+					return new ol.style.Style(options.hover(feature.getProperties()));
+				}
+			}));
+
+		if (typeof options.click == 'function')
+			map.addInteraction(new ol.interaction.Select({
+				layers: [this],
+				condition: ol.events.condition.singleClick,
+				filter: function(feature) {
+					return options.click(feature.getProperties());
+				}
+			}));
+	};
+
+	return layer;
+}
+
+/**
+ * www.refuges.info POI layer
+ */
+function pointsWriLayer() {
+	return geoJsonLayer({
+		url: '//www.refuges.info/api/bbox?type_points=7,10,9,23,6,3,28',
+		style: function(properties) {
+			return {
 				image: new ol.style.Icon({
-					src: options.properties(feature.getProperties()).styleImage
+					src: 'http://www.refuges.info/images/icones/' + properties.type.icone + '.png'
 				}),
 				offset: [8, 8]
-			});
+			};
 		},
-		hover: function(feature) {
-			return new ol.style.Style({
+		hover: function(property) {
+			return {
 				text: new ol.style.Text({
-					text: options.properties(feature.getProperties()).hoverText.toUpperCase(),
+					text: property.nom,
 					font: 'bold 10px Verdana',
 					fill: new ol.style.Fill({
 						color: 'black'
@@ -393,28 +383,11 @@ function geoJsonLayer(options) {
 						width: 8
 					})
 				})
-			});
-		},
-		click: function(feature) {
-			var url = options.properties(feature.getProperties()).clickUrl;
-			if (url)
-				window.location.href = url;
-		}
-	}, options));
-}
-
-/**
- * www.refuges.info POI layer
- */
-function pointsWriLayer() {
-	return geoJsonLayer({
-		url: '//www.refuges.info/api/bbox?type_points=7,10,9,23,6,3,28',
-		properties: function(property) {
-			return {
-				styleImage: 'http://www.refuges.info/images/icones/' + property.type.icone + '.png',
-				hoverText: property.nom,
-				clickUrl: property.lien
 			}
+		},
+		click: function(property) {
+			if (property.lien)
+				window.location.href = property.lien;
 		}
 	});
 }
@@ -425,38 +398,38 @@ function pointsWriLayer() {
 function massifsWriLayer() {
 	return geoJsonLayer({
 		url: '//www.refuges.info/api/polygones?type_polygon=1',
-		style: function(feature) {
-			// Traduit la couleur en rgba pour pouvoir lui appliquer une transparence
-			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(feature.getProperties().couleur);
-			return new ol.style.Style({
+		style: function(properties) {
+			// Translates the color in RGBA to be transparent
+			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(properties.couleur);
+			return {
 				fill: new ol.style.Fill({
 					color: 'rgba(' + parseInt(cs[1], 16) + ',' + parseInt(cs[2], 16) + ',' + parseInt(cs[3], 16) + ',0.5)'
 				}),
 				stroke: new ol.style.Stroke({
 					color: 'black'
 				})
-			});
+			};
 		},
-		hover: function(feature) {
-			return new ol.style.Style({
+		hover: function(properties) { //TODO BUG devrait afficher un 'title"
+			return {
 				text: new ol.style.Text({
-					text: feature.getProperties().nom,
+					text: properties.nom,
 					font: '12px Verdana',
 					fill: new ol.style.Fill({
 						color: 'white'
 					}),
 					stroke: new ol.style.Stroke({
-						color: feature.getProperties().couleur,
+						color: properties.couleur,
 						width: 5
 					})
 				}),
 				fill: new ol.style.Fill({
-					color: feature.getProperties().couleur
+					color: properties.couleur
 				}),
 				stroke: new ol.style.Stroke({
 					color: 'black'
 				})
-			});
+			};
 		}
 	});
 }
@@ -670,7 +643,7 @@ function overpassLayer(request) {
 function overlaysCollection() {
 	return {
 		//TODO TODO OverPass: overpassLayer(),
-		Chemineur: chemineurLayer(),
+//TODO DCMM		Chemineur: chemineurLayer(),
 		Massifs: massifsWriLayer(),
 		WRI: pointsWriLayer()
 	};
@@ -698,21 +671,21 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 				features: [iconFeature]
 			}),
 			style: iconStyle,
-			zIndex: 1,
-			onAdd: function(map) {
-				if (edit) {
-					// Drag and drop
-					map.addInteraction(new ol.interaction.Modify({
-						features: new ol.Collection([iconFeature]),
-						style: iconStyle,
-						pixelTolerance: 20
-					}));
-					point.on('change', function() {
-						displayLL(this.getCoordinates());
-					});
-				}
-			}
+			zIndex: 1
 		});
+	layer.onAdd = function(map) {
+		if (edit) {
+			// Drag and drop
+			map.addInteraction(new ol.interaction.Modify({
+				features: new ol.Collection([iconFeature]),
+				style: iconStyle,
+				pixelTolerance: 20
+			}));
+			point.on('change', function() {
+				displayLL(this.getCoordinates());
+			});
+		}
+	}
 
 	// Affiche une coordonnée
 	function displayLL(ll) {
@@ -832,12 +805,12 @@ function permalink(options) {
 					view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
 					// Also select layer
 					var inputs = document.getElementsByTagName('input');
-					for (var i in inputs) //TDB ne marche pas tout le temps !!! => for i=0;... ???
+					for (var i in inputs) //TODO surveiller BUG ne marche pas tout le temps !!! => for i=0;... ???
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 							inputs[i].value == decodeURI(params[3]);
-					e.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
-					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
+//TODO surveiller pourquoi ???					e.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+//TODO surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
 
@@ -1045,7 +1018,7 @@ function buttonGPS() {
 /**
  * Control that displays the length of a line overflown
  */
-ol.control.LengthLine = function(opt_options) {
+ol.control.LengthLine = function(opt_options) { //TODO BEST remettre en forme d'héritage de classe
 	var options = opt_options ? opt_options : {};
 	options.className = 'ol-length-line';
 	ol.control.MousePosition.call(this, options); //HACK reuse of an existing control
@@ -1119,7 +1092,7 @@ function controlsCollection() {
 			tipLabel: 'Plein écran'
 		}),
 		new ol.control.ScaleLine(),
-		new ol.control.LengthLine(),
+//TODO		new ol.control.LengthLine(),
 		new ol.control.MousePosition({
 			coordinateFormat: ol.coordinate.createStringXY(5),
 			projection: 'EPSG:4326',
