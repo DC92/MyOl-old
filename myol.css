@@ -80,3 +80,9 @@ border: 1px solid #abc;
     background: #39c;
 	padding: 0 2px;
 }
+
+/* Features popup */
+.popup {
+	position:relative;
+	background: yellow;
+}

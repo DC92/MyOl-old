@@ -12,7 +12,6 @@
 //	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
 //	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
 
-//TODO BEST reprendre commentaires / traduire commentaires en 1 seule langue (UK ?)
 //TODO BEST Voir traffic réseau (autre couche = ord survey ??)
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
 //TODO BEST check , à la fin des tablos
@@ -20,7 +19,6 @@
 //TODO BEST Superzoom
 //TODO BEST Harmoniser buttonXxxx yyyElement ...
 //TODO BEST Site off line, application
-//TODO BEST reprende les variables en une seule lettre : e,
 
 //TODO TEST mobiles ! boutons trop grand ou trop pres
 //TODO TEST https
@@ -98,7 +96,9 @@ function stamenLayer(layer) {
 }
 
 /**
- * IGN
+ * IGN France
+ * Doc on http://api.ign.fr
+ * Get a free key : http://professionnels.ign.fr/ign/contrats
  */
 function ignLayer(key, layer, format) {
 	var IGNresolutions = [],
@@ -130,8 +130,8 @@ function ignLayer(key, layer, format) {
 /**
  * Incomplete cards
  * Virtual class
- * displays OSM outside the zoom area, 
- * displays blank outside the area of validity
+ * Displays OSM outside the zoom area, 
+ * Displays blank outside the area of validity
  */
 function incompleteTileLayer(extent, sources) {
 	var layer = new ol.layer.Tile(),
@@ -153,8 +153,8 @@ function incompleteTileLayer(extent, sources) {
 
 		// Search for sources according to the map resolution
 		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).filter(function(e) {
-				return e > view.getResolution();
+			resolution = Object.keys(sources).filter(function(event) {
+				return event > view.getResolution();
 			})[0];
 
 		// Update layer if necessary
@@ -326,10 +326,47 @@ function geoJsonLayer(options) {
 				}
 		});
 
-	var map;
 	layer.onAdd = function(m) {
 		map = m;
 
+		// Create the label's popup
+		var elpop = document.createElement('div'),
+			popup = new ol.Overlay({
+				element: elpop
+			});
+		map.addOverlay(popup);
+
+		// Label popup activity
+		map.on('pointermove', function(event) {
+			popup.setPosition(undefined); // Hide label by default if none feature here
+			map.getViewport().style.cursor = 'default';
+
+			map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
+				if (layer.options_ &&
+					typeof layer.options_.hover == 'function') {
+					// Garder pour doc !!! var a = layer.getStyleFunction()(feature).getText();
+					var p = layer.options_.hover(feature.getProperties());
+					if (p.label) {
+						elpop.innerHTML = p.label.text; // Set the label inner
+						elpop.className = 'popup ' + (p.label.className || '');
+
+						// Now, where to put the label ?
+						var c = feature.getGeometry().flatCoordinates; // If it's a point, just over it
+						if (c.length != 2)
+							c = event.coordinate; // If it's a surface, over the pointer
+						popup.setPosition(c);
+
+						// Well calculated shift of the label regarding the pointer position
+						var pixel = map.getPixelFromCoordinate(c);
+						elpop.style.left = -elpop.clientWidth * pixel[0] / map.getSize()[0] + 'px';
+						elpop.style.top = pixel[1] < elpop.clientHeight + 10 ? '10px' : '-' + (elpop.clientHeight + 5) + 'px';
+						map.getViewport().style.cursor = 'pointer';
+					}
+				}
+			});
+		});
+
+		// Hover activity (coloring the feature)
 		if (typeof options.hover == 'function')
 			map.addInteraction(new ol.interaction.Select({
 				layers: [layer],
@@ -342,18 +379,51 @@ function geoJsonLayer(options) {
 					return new ol.style.Style(options.hover(feature.getProperties()));
 				}
 			}));
-
-		if (typeof options.click == 'function')
-			map.addInteraction(new ol.interaction.Select({
-				layers: [this],
-				condition: ol.events.condition.singleClick,
-				filter: function(feature) {
-					return options.click(feature.getProperties());
-				}
-			}));
 	};
+	//TODO click on feature
+	//TODO BUG ne déplace pas quand on tient sur un massif
+	//TODO Styles des popup
 
+	layer.options_ = options;
 	return layer;
+}
+/**
+ * www.refuges.info areas layer
+ */
+function massifsWriLayer() {
+	return geoJsonLayer({
+		url: '//www.refuges.info/api/polygones?type_polygon=1',
+		style: function(properties) {
+			// Translates the color in RGBA to be transparent
+			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(properties.couleur);
+			return {
+				fill: new ol.style.Fill({
+					color: 'rgba(' + parseInt(cs[1], 16) + ',' + parseInt(cs[2], 16) + ',' + parseInt(cs[3], 16) + ',0.5)'
+				}),
+				stroke: new ol.style.Stroke({
+					color: 'black'
+				}),
+			};
+		},
+		hover: function(properties) { //TODO BUG devrait afficher un 'title'
+			return {
+				label: {
+					className: 'popup-wri',
+					text: '<div>'+properties.nom+'</div>'
+				},
+				fill: new ol.style.Fill({
+					color: properties.couleur
+				}),
+				stroke: new ol.style.Stroke({
+					color: 'black'
+				})
+			};
+		},
+		click: function(properties) {
+			if (properties.lien)
+				window.location.href = properties.lien;
+		}
+	});
 }
 
 /**
@@ -370,66 +440,17 @@ function pointsWriLayer() {
 				offset: [8, 8]
 			};
 		},
-		hover: function(property) {
+		hover: function(properties) {
 			return {
-				text: new ol.style.Text({
-					text: property.nom,
-					font: 'bold 10px Verdana',
-					fill: new ol.style.Fill({
-						color: 'black'
-					}),
-					stroke: new ol.style.Stroke({
-						color: 'yellow',
-						width: 8
-					})
-				})
+				label: {
+					wclassName: 'popup-massifs',
+					text: '<b>'+properties.nom+'</b>'
+				}
 			}
 		},
-		click: function(property) {
-			if (property.lien)
-				window.location.href = property.lien;
-		}
-	});
-}
-
-/**
- * www.refuges.info areas layer
- */
-function massifsWriLayer() {
-	return geoJsonLayer({
-		url: '//www.refuges.info/api/polygones?type_polygon=1',
-		style: function(properties) {
-			// Translates the color in RGBA to be transparent
-			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(properties.couleur);
-			return {
-				fill: new ol.style.Fill({
-					color: 'rgba(' + parseInt(cs[1], 16) + ',' + parseInt(cs[2], 16) + ',' + parseInt(cs[3], 16) + ',0.5)'
-				}),
-				stroke: new ol.style.Stroke({
-					color: 'black'
-				})
-			};
-		},
-		hover: function(properties) { //TODO BUG devrait afficher un 'title"
-			return {
-				text: new ol.style.Text({
-					text: properties.nom,
-					font: '12px Verdana',
-					fill: new ol.style.Fill({
-						color: 'white'
-					}),
-					stroke: new ol.style.Stroke({
-						color: properties.couleur,
-						width: 5
-					})
-				}),
-				fill: new ol.style.Fill({
-					color: properties.couleur
-				}),
-				stroke: new ol.style.Stroke({
-					color: 'black'
-				})
-			};
+		click: function(properties) {
+			if (properties.lien)
+				window.location.href = properties.lien;
 		}
 	});
 }
@@ -440,21 +461,35 @@ function massifsWriLayer() {
 function chemineurLayer() {
 	return geoJsonLayer({
 		url: 'http://chemineur.fr/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
-		properties: function(property) {
+		style: function(properties) {
 			return {
-				styleImage: property.icone,
-				hoverText: property.nom,
-				clickUrl: property.url
+				image: new ol.style.Icon({
+					src: properties.icone
+				}),
+				offset: [8, 8]
+			};
+		},
+		hover: function(properties) {
+			return {
+				label: {
+					className: 'popup-chemineur',
+					text: '<i>'+properties.nom+'</i>'
+				}
 			}
+		},
+		click: function(properties) {
+			if (properties.url)
+				window.location.href = properties.url;
 		}
 	});
 }
 
 /**
  * OSM overpass poi layer
- * doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
- * from: https://openlayers.org/en/latest/examples/vector-osm.html
+ * From: https://openlayers.org/en/latest/examples/vector-osm.html
+ * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
  */
+//TODO BUG REDO
 function overpassLayer(request) {
 	request = request || { // Default selection
 		// icon_name: '[overpass selection]'
@@ -643,9 +678,9 @@ function overpassLayer(request) {
 function overlaysCollection() {
 	return {
 		//TODO TODO OverPass: overpassLayer(),
-//TODO DCMM		Chemineur: chemineurLayer(),
-		Massifs: massifsWriLayer(),
-		WRI: pointsWriLayer()
+		Chemineur: chemineurLayer(),
+		WRI: pointsWriLayer(),
+		Massifs: massifsWriLayer()
 	};
 }
 
@@ -687,13 +722,13 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 		}
 	}
 
-	// Affiche une coordonnée
+	// Show a coordinate
 	function displayLL(ll) {
 		var ll4326 = ol.proj.transform(ll, 'EPSG:3857', 'EPSG:4326'),
 			html = format[0],
 			p = [Math.round(ll4326[0] * 100000) / 100000, Math.round(ll4326[1] * 100000) / 100000];
 
-		// Ajout des coordonnées suisses EPSG:21781 (CH1903 / LV03)
+		// Adding Swiss coordinates EPSG:21781 (CH1903 / LV03)
 		if (ol.extent.containsCoordinate([664577, 5753148, 1167741, 6075303], ll) && // Si on est dans la zone suisse EPSG:21781
 			format.length >= 2 &&
 			typeof proj4 == 'function') {
@@ -703,11 +738,11 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 			p.push(Math.round(c21781[0]), Math.round(c21781[1]));
 		}
 
-		// On intégre les coordonnées dans le format html
+		// We integrate coordinates in html format
 		for (var r in p) // === sprinft
 			html = html.replace('{' + r + '}', p[r]);
 
-		// On insère la chaine HTML obtenue à l'endroit qui va bien
+		// We insert the resulting HTML string where it is going
 		var llid = document.getElementById(IdDisplay);
 		if (llid)
 			llid.innerHTML = html;
@@ -717,9 +752,9 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 	displayLL(ol.proj.fromLonLat(ll));
 
 	// <input> coords edition
-	layer.edit = function(e, nol, projection) {
+	layer.edit = function(event, nol, projection) {
 		var coord = ol.proj.transform(point.getCoordinates(), 'EPSG:3857', 'EPSG:' + projection); // La position actuelle du marqueur
-		coord[nol] = parseFloat(e.value); // On change la valeur qui a été modifiée
+		coord[nol] = parseFloat(event.value); // On change la valeur qui a été modifiée
 		point.setCoordinates(ol.proj.transform(coord, 'EPSG:' + projection, 'EPSG:3857')); // On repositionne le marqueur
 	}
 
@@ -751,8 +786,7 @@ function controlButton(label, options) {
 	if (options.action)
 		button.addEventListener('click', options.action, false);
 	if (options.color)
-		button.style.backgroundColor = options.color; // Colore le bouton
-
+		button.style.backgroundColor = options.color; // Color button
 	var element = document.createElement('div');
 	element.className = 'ol-button ol-unselectable ol-control ' + (options.className || '');
 	if (options.invisible)
@@ -787,8 +821,8 @@ function permalink(options) {
 	return controlButton('&infin;', {
 		title: 'Permalien',
 		invisible: options.invisible,
-		render: function(e) {
-			var view = e.map.getView();
+		render: function(event) {
+			var view = event.map.getView();
 
 			// Set the map at permalink position
 			if (options.init != false && // If use hash & cookies
@@ -809,7 +843,7 @@ function permalink(options) {
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 							inputs[i].value == decodeURI(params[3]);
-//TODO surveiller pourquoi ???					e.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+//TODO surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
 //TODO surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
@@ -821,9 +855,9 @@ function permalink(options) {
 				Math.round(ll4326[0] * 100000) / 100000,
 				Math.round(ll4326[1] * 100000) / 100000
 			];
-			e.map.getLayers().forEach(function(e) {
-				if (e.getVisible() && e.name_)
-					params[3] = encodeURI(e.name_);
+			event.map.getLayers().forEach(function(element) {
+				if (element.getVisible() && element.name_)
+					params[3] = encodeURI(element.name_);
 			});
 
 			// Mem position in a cookie
@@ -849,7 +883,7 @@ function controlLayers(baseLayers, overLayers) {
 		render: render
 	});
 
-	// Curseur de transparence
+	// Transparency slider
 	var rangeElement = document.createElement('input');
 	rangeElement.type = 'range';
 	rangeElement.className = 'range-layer';
@@ -868,9 +902,9 @@ function controlLayers(baseLayers, overLayers) {
 	// When the map is created & rendered
 	var map;
 
-	function render(e) {
+	function render(event) {
 		if (!selectorElement.childElementCount) { // Only the first time
-			map = e.map; // Take occasion to mem the map reference !
+			map = event.map; // Take occasion to mem the map reference !
 
 			// Base layers selector init
 			for (var name in baseLayers) {
@@ -911,34 +945,34 @@ function controlLayers(baseLayers, overLayers) {
 			});
 
 			// Leaving the map close the selector
-			window.addEventListener('mousemove', function(e) {
+			window.addEventListener('mousemove', function(event) {
 				var divRect = map.getTargetElement().getBoundingClientRect();
-				if (e.clientX < divRect.left || e.clientX > divRect.right ||
-					e.clientY < divRect.top || e.clientY > divRect.bottom)
+				if (event.clientX < divRect.left || event.clientX > divRect.right ||
+					event.clientY < divRect.top || event.clientY > divRect.bottom)
 					displayLayerSelector(false);
 			}, false);
 		}
 	}
 
-	var currentBaseLayerName = Object.keys(baseLayers)[0], // Le nom de la précédente couche affichée. Par défaut la premiere
-		checkedBaseLayers = []; // Les layers sélectionnés (dans l'ordre de baseLayers)
+	var currentBaseLayerName = Object.keys(baseLayers)[0], // Cursor of the name of the previous layer displayed. By default the first
+		checkedBaseLayers = []; // The selected layers (in basic orderLayers)
 
 	// Click on a check mark
-	function checkLayer(e) {
+	function checkLayer(event) {
 		var selectorInputs = selectorElement.getElementsByTagName('input');
 		checkedBaseLayers = [];
 		for (var l = 0; l < Object.keys(baseLayers).length; l++) {
-			if (e.target.checked &&
-				((!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) ||
+			if (event.target.checked &&
+				((!event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) ||
 					selectorInputs[l].value != currentBaseLayerName))
-				selectorInputs[l].checked = e.target.value == selectorInputs[l].value;
+				selectorInputs[l].checked = event.target.value == selectorInputs[l].value;
 
 			if (selectorInputs[l].checked)
 				checkedBaseLayers.push(baseLayers[selectorInputs[l].value]);
 		}
 
-		currentBaseLayerName = e.target.value; // Mémorise pour la prochaine fois
-		rangeElement.value = 50; // Remet le curseur au centre à chaque nouvelle sélection
+		currentBaseLayerName = event.target.value; // Memorize for next time
+		rangeElement.value = 50; // Put the cursor back in the center with each new selection
 		displayLayerSelector(true);
 	}
 
@@ -967,7 +1001,7 @@ function controlLayers(baseLayers, overLayers) {
  * GPS control
  */
 function buttonGPS() {
-	// Le marqueur de la position
+	// The position marker
 	var point_ = new ol.geom.Point([0, 0]),
 		source_ = new ol.source.Vector({
 			features: [new ol.Feature({
@@ -976,8 +1010,7 @@ function buttonGPS() {
 		}),
 		style_ = new ol.style.Style({
 			image: new ol.style.Icon({
-				anchor: [.5, .5], // Picto de marquage de la position sur la carte
-				//TODO BEST cible en SVG 'data:image/svg+xml;utf8,<svg ... > ... </svg>'
+				anchor: [.5, .5], // Picto marking the position on the map
 				src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAA7VBMVEUAAAA/X39UVHFMZn9NXnRPX3RMW3VPXXNOXHJOXXNNXHNOXXFPXHNNXXFPXHFOW3NPXHNPXXJPXXFPXXNNXXFNW3NOXHJPW25PXXNRX3NSYHVSYHZ0fIx1fo13gI95hJR6go96g5B7hpZ8hZV9hpZ9h5d/iZiBi5ucoquepa+fpbGhqbSiqbXNbm7Ob2/OcHDOcXHOcnLPdHTQdXXWiIjXiorXjIzenp7eoKDgpKTgpaXgpqbks7TktLTktbXnubnr2drr5+nr6Ons29vs29zs6Ors6ert6uvt6uzu6uz18fH18fL68PD++/v+/Pw8gTaQAAAAFnRSTlMACAkKLjAylJWWmJmdv8HD19ja2/n6GaRWtgAAAMxJREFUGBkFwctqwkAUgOH/nMnVzuDGFhRKKVjf/226cKWbQgNVkphMzFz6fQJQlY0S/boCAqa1AMAwJwRjW4wtcxgS05gEa3HHOYipzxP9ZKot9tR5ZfIff7FetMQcf4tDVexNd1IKbbA+7S59f9mlZGmMVVdpXN+3gwh+RiGLAjkDGTQSjHfhes3OV0+CkXrdL/4gzVunxQ+DYZNvn+Mg6aav35GH8OJS/SUrVTw/9e4FtRvypsbPwmPMAto6AOC+ZASgLBpDmGMA/gHW2Vtk8HXNjQAAAABJRU5ErkJggg=='
 			})
 		}),
@@ -995,9 +1028,9 @@ function buttonGPS() {
 	var active = false,
 		bouton = controlButton('G', {
 			title: 'Centrer sur la position GPS',
-			action: function(e) {
-				active ^= 1; // Bascule on/off
-				e.target.style.color = active ? 'black' : 'white'; // Color button
+			action: function(event) {
+				active ^= 1; // Toggle on / off
+				event.target.style.color = active ? 'black' : 'white'; // Color button
 				geolocation.setTracking(active); // Turn on / off
 				if (active)
 					bouton.getMap().addLayer(layer);
@@ -1051,9 +1084,9 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 		map.removeInteraction(interaction);
 		element.innerHTML = null;
 	});
-	map.on(['pointermove'], function(e) {
+	map.on(['pointermove'], function(event) {
 		var actif = interaction.getMap();
-		if (map.getFeaturesAtPixel(e.pixel, 5)) {
+		if (map.getFeaturesAtPixel(event.pixel, 5)) {
 			if (!actif)
 				map.addInteraction(interaction);
 		} else {
@@ -1146,8 +1179,8 @@ function editorButton(id, snapLayers) {
 			}),
 			modify: new ol.interaction.Modify({
 				source: source,
-				deleteCondition: function(e) {
-					return ol.events.condition.altKeyOnly(e) && ol.events.condition.click(e); //HACK because the system don't trig singleClick
+				deleteCondition: function(event) {
+					return ol.events.condition.altKeyOnly(event) && ol.events.condition.click(event); //HACK because the system don't trig singleClick
 
 				}
 			}),
@@ -1203,13 +1236,13 @@ function editorButton(id, snapLayers) {
 		map.addInteraction(editMode ? interactions.modify : interactions.draw);
 		map.addInteraction(interactions.snap);
 	}
-	interactions.draw.on(['drawend'], function(e) {
+	interactions.draw.on(['drawend'], function() {
 		setMode(true); // We close the line creation mode
 	});
-	source.on(['addfeature'], function(e) {
+	source.on(['addfeature'], function() {
 		stickLines();
 	});
-	source.on(['change'], function(e) {
+	source.on(['change'], function() {
 		// Save lines in <EL> as geoJSON at every change
 		el.textContent = format.writeFeatures(source.getFeatures(), {
 			featureProjection: 'EPSG:3857'
@@ -1218,17 +1251,17 @@ function editorButton(id, snapLayers) {
 	});
 
 	// Removes a line, a segment, and breaks a line in 2
-	interactions.modify.on('modifyend', function(e) {
+	interactions.modify.on('modifyend', function(event) {
 		// We retrieve the list of targeted features
-		var features = e.mapBrowserEvent.map.getFeaturesAtPixel(e.mapBrowserEvent.pixel, {
+		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
 			hitTolerance: 5
 		});
 		if (features.length > 1 && // If there is anything there
-			e.mapBrowserEvent.type == 'pointerup') {
-			if (ol.events.condition.altShiftKeysOnly(e.mapBrowserEvent))
+			event.mapBrowserEvent.type == 'pointerup') {
+			if (ol.events.condition.altShiftKeysOnly(event.mapBrowserEvent))
 				source.removeFeature(features[1]); // We delete the line
 			else
-			if (ol.events.condition.altKeyOnly(e.mapBrowserEvent)) {
+			if (ol.events.condition.altKeyOnly(event.mapBrowserEvent)) {
 				source.removeFeature(features[1]); // We also delete the line
 
 				var c0 = features[0].getGeometry().flatCoordinates, // The coordinates of the cut point marker
@@ -1279,22 +1312,22 @@ function editorButton(id, snapLayers) {
 		}
 
 		// We are looking for 2 lines with the same first end
-		for (var m in lines) {
-			var found = lines.filter(function(e) {
-				return e.indexFeature != lines[m].indexFeature && // Not the same piece!
-					e.premier[0] == lines[m].premier[0] && // X of the first points is the same
-					e.premier[1] == lines[m].premier[1]; // Y of the first points is the same
+		for (var l in lines) {
+			var found = lines.filter(function(event) {
+				return event.indexFeature != lines[l].indexFeature && // Not the same piece!
+					event.premier[0] == lines[l].premier[0] && // X of the first points is the same
+					event.premier[1] == lines[l].premier[1]; // Y of the first points is the same
 			})[0];
 
 			// We found at least one pair
 			if (typeof found == 'object') {
 				// We delete the 2 lines
 				source.removeFeature(features[found.indexFeature]);
-				source.removeFeature(features[lines[m].indexFeature]);
+				source.removeFeature(features[lines[l].indexFeature]);
 
 				// We add one by gluing the 2 ends
 				source.addFeature(new ol.Feature({
-					geometry: new ol.geom.LineString(found.suite.reverse().concat([found.premier]).concat(lines[m].suite))
+					geometry: new ol.geom.LineString(found.suite.reverse().concat([found.premier]).concat(lines[l].suite))
 				}));
 				return stickLines(); // Restart at the beginning
 			}
