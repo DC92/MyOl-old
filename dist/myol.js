@@ -305,10 +305,10 @@ function layersCollection(keys) {
  * GeoJson POI layer
  */
 function geoJsonLayer(options) {
-	var map, actual_resolution,
+	var actual_resolution,
 		layer = new ol.layer.Vector({
 			source: new ol.source.Vector({
-				strategy: function(extent, resolution) { // Force loading when zoom in / out (for bbox)
+				strategy: function(extent, resolution) { // Force loading when zoom in / out (for BBOX)
 					if (actual_resolution != resolution)
 						this.clear();
 					actual_resolution = resolution;
@@ -326,70 +326,73 @@ function geoJsonLayer(options) {
 				}
 		});
 
-	layer.onAdd = function(m) {
-		map = m;
-
-		// Create the label's popup
-		var elpop = document.createElement('div'),
-			popup = new ol.Overlay({
-				element: elpop
-			});
-		map.addOverlay(popup);
-
-		// Label popup activity
-		if (typeof options.label == 'function')
-			map.on('pointermove', function(event) {
-				popup.setPosition(undefined); // Hide label by default if none feature here
-map.getViewport().style.cursor = 'default';
-
-			// Display a label when hover the feature
-				map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
-					if (layer && layer.options_ &&
-						typeof layer.options_.label == 'function') {
-						// Garder pour doc !!! var t = layer.getStyleFunction()(feature).getText();
-						var p = layer.options_.label(feature.getProperties());
-						elpop.innerHTML = p.text; // Set the label inner
-						elpop.className = 'popup ' + (p.className || '');
-
-						// Now, what anchor for the label () ?
-						var c = feature.getGeometry().flatCoordinates; // If it's a point, just over it
-						if (c.length != 2)
-							c = event.coordinate; // If it's a surface, over the pointer
-						popup.setPosition(map.getView().getCenter()); // For popup size calculation
-
-						// Well calculated shift of the label regarding the pointer position
-						var p = map.getPixelFromCoordinate(c);
-						if (p[1] < elpop.clientHeight + 12) { // On the top of the map (not enough space for it)
-							p[0] += p[0] < map.getSize()[0] / 2 ? 10 : -elpop.clientWidth - 10;
-							p[1] += 2 - p[1];
-						} else {
-							p[0] -= elpop.clientWidth * p[0] / map.getSize()[0];
-							p[1] -= elpop.clientHeight + 10;
-						}
-						popup.setPosition(map.getCoordinateFromPixel(p));
-if (options.click)
-map.getViewport().style.cursor = 'pointer';
-					}
-				});
-		});
+	layer.options_ = options; // Mem options for intercations
+	layer.onAdd = function(map_) {
 
 		// Hover activity (coloring the feature)
 		if (typeof options.hover == 'function')
-			map.addInteraction(new ol.interaction.Select({
+			map_.addInteraction(new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.pointerMove,
 				style: function(feature) {
-					// Change pointer while hovering a clicable feature
-if (options.click)
-map.getViewport().style.cursor = 'pointer';
-
 					return new ol.style.Style(options.hover(feature.getProperties()));
 				}
 			}));
-	};
-	//TODO click on feature
 
-	layer.options_ = options;
+		if (!map_.elpop) { // Only once for all layers
+			// Create the label's popup
+			map_.elpop = document.createElement('div');
+			var popup = new ol.Overlay({
+				element: map_.elpop
+			});
+			map_.addOverlay(popup);
+
+			// Display a label when hover the feature
+			map_.on('pointermove', function(event) {
+				popup.setPosition(undefined); // Hide label by default if none feature here
+				map_.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
+
+				// Search the hovered the feature(s)
+				map_.forEachFeatureAtPixel(event.pixel, function(feature_, layer_) {
+					if (layer_.options_ && typeof layer_.options_.label == 'function') {
+						// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
+						var properties_ = layer_.options_.label(feature_.getProperties());
+						map_.elpop.innerHTML = properties_.text; // Set the label inner
+						map_.elpop.className = 'popup ' + (properties_.className || '');
+
+						// Now, what anchor for the label () ?
+						var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
+						if (coordinates_.length != 2)
+							coordinates_ = event.coordinate; // If it's a surface, over the pointer
+						popup.setPosition(map_.getView().getCenter()); // For popup size calculation
+
+						// Well calculated shift of the label regarding the pointer position
+						var pixel = map_.getPixelFromCoordinate(coordinates_);
+						if (pixel[1] < map_.elpop.clientHeight + 12) { // On the top of the map (not enough space for it)
+							pixel[0] += pixel[0] < map_.getSize()[0] / 2 ? 10 : -map_.elpop.clientWidth - 10;
+							pixel[1] += 2 - pixel[1];
+						} else {
+							pixel[0] -= map_.elpop.clientWidth * pixel[0] / map_.getSize()[0];
+							pixel[1] -= map_.elpop.clientHeight + 10;
+						}
+						popup.setPosition(map_.getCoordinateFromPixel(pixel));
+					}
+					if (layer_.options_ && layer_.options_.click)
+						map_.getViewport().style.cursor = 'pointer';
+				});
+			});
+
+			// Click on feature
+			map_.on('click', function(event) {
+				// Search the clicked the feature(s)
+				map_.forEachFeatureAtPixel(event.pixel, function(feature_, layer_) {
+					if (layer_.options_ && typeof layer_.options_.click == 'function')
+						layer_.options_.click(feature_.getProperties());
+				});
+			});
+		}
+	};
+
 	return layer;
 }
 
