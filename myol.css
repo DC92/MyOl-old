@@ -83,6 +83,12 @@ border: 1px solid #abc;
 
 /* Features popup */
 .popup {
-	position:relative;
-	background: yellow;
+	padding: 1px 4px;
+	background: white;
+	border-radius: 5px;
+	box-shadow: 0 3px 8px #888;
+	-moz-box-shadow: 0 3px 8px #888;
+	-webkit-box-shadow: 0 3px 8px #999;
+	font-size: 12px;
+	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
 }

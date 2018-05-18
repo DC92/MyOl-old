@@ -337,33 +337,40 @@ function geoJsonLayer(options) {
 		map.addOverlay(popup);
 
 		// Label popup activity
-		map.on('pointermove', function(event) {
-			popup.setPosition(undefined); // Hide label by default if none feature here
-			map.getViewport().style.cursor = 'default';
+		if (typeof options.label == 'function')
+			map.on('pointermove', function(event) {
+				popup.setPosition(undefined); // Hide label by default if none feature here
+map.getViewport().style.cursor = 'default';
 
-			map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
-				if (layer.options_ &&
-					typeof layer.options_.hover == 'function') {
-					// Garder pour doc !!! var a = layer.getStyleFunction()(feature).getText();
-					var p = layer.options_.hover(feature.getProperties());
-					if (p.label) {
-						elpop.innerHTML = p.label.text; // Set the label inner
-						elpop.className = 'popup ' + (p.label.className || '');
+			// Display a label when hover the feature
+				map.forEachFeatureAtPixel(event.pixel, function(feature, layer) {
+					if (layer && layer.options_ &&
+						typeof layer.options_.label == 'function') {
+						// Garder pour doc !!! var t = layer.getStyleFunction()(feature).getText();
+						var p = layer.options_.label(feature.getProperties());
+						elpop.innerHTML = p.text; // Set the label inner
+						elpop.className = 'popup ' + (p.className || '');
 
-						// Now, where to put the label ?
+						// Now, what anchor for the label () ?
 						var c = feature.getGeometry().flatCoordinates; // If it's a point, just over it
 						if (c.length != 2)
 							c = event.coordinate; // If it's a surface, over the pointer
-						popup.setPosition(c);
+						popup.setPosition(map.getView().getCenter()); // For popup size calculation
 
 						// Well calculated shift of the label regarding the pointer position
-						var pixel = map.getPixelFromCoordinate(c);
-						elpop.style.left = -elpop.clientWidth * pixel[0] / map.getSize()[0] + 'px';
-						elpop.style.top = pixel[1] < elpop.clientHeight + 10 ? '10px' : '-' + (elpop.clientHeight + 5) + 'px';
-						map.getViewport().style.cursor = 'pointer';
+						var p = map.getPixelFromCoordinate(c);
+						if (p[1] < elpop.clientHeight + 12) { // On the top of the map (not enough space for it)
+							p[0] += p[0] < map.getSize()[0] / 2 ? 10 : -elpop.clientWidth - 10;
+							p[1] += 2 - p[1];
+						} else {
+							p[0] -= elpop.clientWidth * p[0] / map.getSize()[0];
+							p[1] -= elpop.clientHeight + 10;
+						}
+						popup.setPosition(map.getCoordinateFromPixel(p));
+if (options.click)
+map.getViewport().style.cursor = 'pointer';
 					}
-				}
-			});
+				});
 		});
 
 		// Hover activity (coloring the feature)
@@ -373,20 +380,19 @@ function geoJsonLayer(options) {
 				condition: ol.events.condition.pointerMove,
 				style: function(feature) {
 					// Change pointer while hovering a clicable feature
-					if (options.click)
-						map.getViewport().style.cursor = 'pointer';
+if (options.click)
+map.getViewport().style.cursor = 'pointer';
 
 					return new ol.style.Style(options.hover(feature.getProperties()));
 				}
 			}));
 	};
 	//TODO click on feature
-	//TODO BUG ne déplace pas quand on tient sur un massif
-	//TODO Styles des popup
 
 	layer.options_ = options;
 	return layer;
 }
+
 /**
  * www.refuges.info areas layer
  */
@@ -402,15 +408,16 @@ function massifsWriLayer() {
 				}),
 				stroke: new ol.style.Stroke({
 					color: 'black'
-				}),
+				})
 			};
 		},
-		hover: function(properties) { //TODO BUG devrait afficher un 'title'
+		label: function(properties) {
 			return {
-				label: {
-					className: 'popup-wri',
-					text: '<div>'+properties.nom+'</div>'
-				},
+				text: properties.nom
+			};
+		},
+		hover: function(properties) {
+			return {
 				fill: new ol.style.Fill({
 					color: properties.couleur
 				}),
@@ -440,13 +447,10 @@ function pointsWriLayer() {
 				offset: [8, 8]
 			};
 		},
-		hover: function(properties) {
+		label: function(properties) {
 			return {
-				label: {
-					wclassName: 'popup-massifs',
-					text: '<b>'+properties.nom+'</b>'
-				}
-			}
+				text: properties.nom
+			};
 		},
 		click: function(properties) {
 			if (properties.lien)
@@ -469,13 +473,10 @@ function chemineurLayer() {
 				offset: [8, 8]
 			};
 		},
-		hover: function(properties) {
+		label: function(properties) {
 			return {
-				label: {
-					className: 'popup-chemineur',
-					text: '<i>'+properties.nom+'</i>'
-				}
-			}
+				text: properties.nom
+			};
 		},
 		click: function(properties) {
 			if (properties.url)
