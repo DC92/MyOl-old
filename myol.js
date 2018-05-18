@@ -7,7 +7,7 @@
 //******************************************************************************
 
 //TODO impression full format page
-//TODO upload, download GPX 
+//TODO download GPX 
 //	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
 //	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
 
@@ -784,6 +784,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 var nextButtonTopPos = 6; // Top position of next button (em)
 //TODO BEST automatiser position des autres boutons
 
+//TODO nepas colorier le bouton en sombre lors du clic
 function controlButton(label, options) {
 	var button = document.createElement('button');
 	button.innerHTML = label;
@@ -809,6 +810,41 @@ function controlButton(label, options) {
 		element: element,
 		render: options.render
 	});
+}
+
+/**
+ * GPX file loader control
+ */
+function controlLoadGPX() {
+	var pseudoButton = document.createElement('input'),
+		button = controlButton('&uArr;', {
+			title: 'Charger un fichier GPX',
+			action: function() {
+				pseudoButton.click();
+			}
+		}),
+		reader = new FileReader();
+
+	pseudoButton.type = 'file';
+	pseudoButton.addEventListener('change', function() {
+		reader.readAsText(pseudoButton.files[0]);
+	});
+
+	reader.onload = function() {
+		var format = new ol.format.GPX(),
+			source = new ol.source.Vector({
+				format: format,
+			}),
+			vector = new ol.layer.Vector({
+				source: source
+			});
+		button.getMap().addLayer(vector);
+		source.addFeatures(format.readFeatures(reader.result, {
+			dataProjection: 'EPSG:4326',
+			featureProjection: 'EPSG:3857'
+		}));
+	};
+	return button;
 }
 
 /**
@@ -1146,6 +1182,7 @@ function controlsCollection() {
 			placeholder: 'Recherche par nom' // Initialization of the input field
 		}),
 		controlGPS(),
+		controlLoadGPX(),
 		controlButton('&equiv;', {
 			title: 'Imprimer la carte',
 			action: function() {
