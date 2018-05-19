@@ -7,20 +7,16 @@
 //******************************************************************************
 
 //TODO impression full format page
-//TODO download GPX 
-//	https://gis.stackexchange.com/questions/175592/read-gpx-file-from-desktop-in-openlayers-3
-//	https://gis.stackexchange.com/questions/53934/save-gpx-from-drawn-feature-in-openlayers
 
 //TODO BEST Voir traffic réseau (autre couche = ord survey ??)
 //TODO BEST mem cookie couches overlay
 //TODO BEST Superzoom
-//TODO BEST Harmoniser buttonXxxx yyyElement ...
+//TODO BEST Harmoniser yyyElement ...
 //TODO BEST Site off line, application
+//TODO BEST Pas 'upload/download sur mobile (-> va vers photos !)
 
 //TODO TEST check , à la fin des tablos
 //TODO TEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
-//TODO TEST mobiles ! boutons trop grand ou trop pres
-//TODO TEST https
 
 /**
  * HACK Call onAdd(map) on layers added to a map
@@ -300,6 +296,7 @@ function layersCollection(keys) {
 //***************************************************************
 // VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
+//TODO sélecteur de type de pictos
 /**
  * GeoJson POI layer
  */
@@ -388,6 +385,8 @@ function layerGeoJson(options) {
 				map_.forEachFeatureAtPixel(event.pixel, function(feature_, layer_) {
 					if (layer_ && layer_.options_ && typeof layer_.options_.click == 'function')
 						layer_.options_.click(feature_.getProperties());
+				}, {
+					hitTolerance: 5
 				});
 			});
 		}
@@ -445,7 +444,7 @@ function layerPointsWri() {
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
-					src: 'http://www.refuges.info/images/icones/' + properties.type.icone + '.png'
+					src: '//www.refuges.info/images/icones/' + properties.type.icone + '.png'
 				}),
 				offset: [8, 8]
 			};
@@ -467,7 +466,7 @@ function layerPointsWri() {
  */
 function chemineurLayer() {
 	return layerGeoJson({
-		url: 'http://chemineur.fr/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
+		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -1113,7 +1112,15 @@ ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
 		el.style.width =
 		ol.control.FullScreen.isFullScreen() ? '100%' : null;
 };
-//TODO TEST full screen limité en hauteur (mobile, ...)
+
+/**
+ * HACK to display a title on the geocoder
+ */
+window.addEventListener('load', function() {
+	el = document.getElementById('gcd-button-control');
+	if (el)
+		el.title = 'Recherche par nom';
+}, true);
 
 /**
  * GPX file loader control
@@ -1155,7 +1162,7 @@ function controlLoadGPX() {
 /**
  * GPX file downloader control
  */
-//TODO BUB incompatible avec l'éditeur
+//TODO BUG incompatible avec l'éditeur (pas de sélect)
 function controlDownloadGPX() {
 	var el = document.createElement('a'),
 		button = controlButton('&dArr;', {
@@ -1214,25 +1221,25 @@ function controlDownloadGPX() {
 /**
  * Controls examples
  */
+//TODO BUG mobiles ! boutons trop grand ou trop pres
 function controlsCollection() {
 	return [
-		new ol.control.Zoom(),
-		new ol.control.Attribution({
-			collapsible: false // Attribution always open
-		}),
-//TODO BUG plus de fullscreen
-		new ol.control.FullScreen({
-			label: '\u21d4',
-			labelActive: '\u21ce',
-			tipLabel: 'Plein écran'
-		}),
 		new ol.control.ScaleLine(),
-		new ol.control.LengthLine(),
 		new ol.control.MousePosition({
 			coordinateFormat: ol.coordinate.createStringXY(5),
 			projection: 'EPSG:4326',
 			className: 'ol-coordinate'
 		}),
+		new ol.control.Attribution({
+			collapsible: false // Attribution always open
+		}),
+		new ol.control.Zoom(),
+		new ol.control.FullScreen({
+//TODO			label: '\u21d4',
+//TODO			labelActive: '\u21ce',
+			tipLabel: 'Plein écran'
+		}),
+		new ol.control.LengthLine(),
 		controlPermalink({
 			init: true,
 			invisible: false
@@ -1241,8 +1248,8 @@ function controlsCollection() {
 		new Geocoder('nominatim', {
 			provider: 'osm',
 			lang: 'FR',
-//TODO BUG pas de commentaire en survolant
-			placeholder: 'Recherche par nom' // Initialization of the input field
+			keepOpen: true,
+			placeholder: 'Saisir un nom' // Initialization of the input field
 		}),
 		controlGPS(),
 		controlLoadGPX(),

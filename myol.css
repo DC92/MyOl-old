@@ -1,9 +1,12 @@
-//******************************************************************************
-// OPENLAYERS V4 ADAPTATION - https://openlayers.org/
-// (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
-//******************************************************************************
+/*!
+ * OPENLAYERS V4 ADAPTATION - https://openlayers.org/
+ * (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
+ */
 
 /* Full screen */
+.html, .body {
+	min-height: 100%;
+}
 .ol-full-screen {
 	top: 4em;
 	left: .5em;
