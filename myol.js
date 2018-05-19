@@ -27,10 +27,10 @@
  */
 ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
 	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method
-
 	if (typeof layer.onAdd == 'function')
 		layer.onAdd(this); // Call ol.layer function
 };
+//TODO BEST utiliser plutôt fire
 
 //***************************************************************
 // TILE LAYERS
@@ -386,7 +386,7 @@ function layerGeoJson(options) {
 			map_.on('click', function(event) {
 				// Search the clicked the feature(s)
 				map_.forEachFeatureAtPixel(event.pixel, function(feature_, layer_) {
-					if (layer_.options_ && typeof layer_.options_.click == 'function')
+					if (layer_ && layer_.options_ && typeof layer_.options_.click == 'function')
 						layer_.options_.click(feature_.getProperties());
 				});
 			});
@@ -813,104 +813,6 @@ function controlButton(label, options) {
 }
 
 /**
- * GPX file loader control
- */
-function controlLoadGPX() {
-	var pseudoButton = document.createElement('input'),
-		button = controlButton('&uArr;', {
-			title: 'Charger un fichier GPX',
-			action: function() {
-				pseudoButton.click();
-			}
-		}),
-		reader = new FileReader();
-
-	pseudoButton.type = 'file';
-	pseudoButton.addEventListener('change', function() {
-		reader.readAsText(pseudoButton.files[0]);
-	});
-
-	reader.onload = function() {
-		var format = new ol.format.GPX(),
-			source = new ol.source.Vector({
-				format: format,
-			}),
-			vector = new ol.layer.Vector({
-				source: source
-			});
-		button.getMap().addLayer(vector);
-		source.addFeatures(format.readFeatures(reader.result, {
-			dataProjection: 'EPSG:4326',
-			featureProjection: 'EPSG:3857'
-		}));
-	};
-	return button;
-}
-
-/**
- * Permalink control
- * options.invisible {true | false | undefined} add a controlPermalink button to the map.
- * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
- * url hash or "controlPermalink" cookie {<ZOOM>/<LON>/<LAT>/<LAYER>}
- * Must be called before controlLayers
- */
-function controlPermalink(options) {
-	options = options || {};
-	var params;
-
-	return controlButton('&infin;', {
-		title: 'Permalien',
-		invisible: options.invisible,
-		render: function(event) {
-			var view = event.map.getView();
-
-			// Set the map at controlPermalink position
-			if (options.init != false && // If use hash & cookies
-				typeof params == 'undefined') { // Only once
-				params = location.hash.substr(1).split('/'), // Get url controlPermalink
-					cookie = document.cookie.match(/controlPermalink=([^;]+)/); // Get cookie controlPermalink
-
-				if (params.length < 4 && // Less than 4 params
-					cookie) // There is a controlPermalink cookie
-					params = cookie[1].split('/');
-
-				if (params.length >= 4) { // Got zoom/lon/lat/layer
-					view.setZoom(params[0]);
-					view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
-					// Also select layer
-					var inputs = document.getElementsByTagName('input');
-					for (var i in inputs) //TODO surveiller BUG ne marche pas tout le temps !!! => for i=0;... ???
-						if (inputs[i].name == 'base')
-							inputs[i].checked =
-							inputs[i].value == decodeURI(params[3]);
-//TODO surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
-//TODO surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
-				}
-			}
-
-			// Mem map position & layers
-			var ll4326 = ol.proj.transform(view.getCenter(), 'EPSG:3857', 'EPSG:4326');
-			params = [
-				parseInt(view.getZoom()),
-				Math.round(ll4326[0] * 100000) / 100000,
-				Math.round(ll4326[1] * 100000) / 100000
-			];
-			event.map.getLayers().forEach(function(element) {
-				if (element.getVisible() && element.name_)
-					params[3] = encodeURI(element.name_);
-			});
-
-			// Mem position in a cookie
-			document.cookie = 'controlPermalink=' + params.join('/') + ';path=/';
-		},
-		// Set controlPermalink at map position
-		action: function() {
-			window.location.href = window.location.pathname + '#' + params.join('/');
-		}
-	});
-}
-
-/**
  * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
@@ -1038,6 +940,69 @@ function controlLayers(baseLayers, overLayers) {
 }
 
 /**
+ * Permalink control
+ * options.invisible {true | false | undefined} add a controlPermalink button to the map.
+ * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
+ * url hash or "controlPermalink" cookie {<ZOOM>/<LON>/<LAT>/<LAYER>}
+ * Must be called before controlLayers
+ */
+function controlPermalink(options) {
+	options = options || {};
+	var params;
+
+	return controlButton('&infin;', {
+		title: 'Permalien',
+		invisible: options.invisible,
+		render: function(event) {
+			var view = event.map.getView();
+
+			// Set the map at controlPermalink position
+			if (options.init != false && // If use hash & cookies
+				typeof params == 'undefined') { // Only once
+				params = location.hash.substr(1).split('/'), // Get url controlPermalink
+					cookie = document.cookie.match(/controlPermalink=([^;]+)/); // Get cookie controlPermalink
+
+				if (params.length < 4 && // Less than 4 params
+					cookie) // There is a controlPermalink cookie
+					params = cookie[1].split('/');
+
+				if (params.length >= 4) { // Got zoom/lon/lat/layer
+					view.setZoom(params[0]);
+					view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
+					// Also select layer
+					var inputs = document.getElementsByTagName('input');
+					for (var i in inputs) //TODO surveiller BUG ne marche pas tout le temps !!! => for i=0;... ???
+						if (inputs[i].name == 'base')
+							inputs[i].checked =
+							inputs[i].value == decodeURI(params[3]);
+//TODO surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+//TODO surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
+				}
+			}
+
+			// Mem map position & layers
+			var ll4326 = ol.proj.transform(view.getCenter(), 'EPSG:3857', 'EPSG:4326');
+			params = [
+				parseInt(view.getZoom()),
+				Math.round(ll4326[0] * 100000) / 100000,
+				Math.round(ll4326[1] * 100000) / 100000
+			];
+			event.map.getLayers().forEach(function(element) {
+				if (element.getVisible() && element.name_)
+					params[3] = encodeURI(element.name_);
+			});
+
+			// Mem position in a cookie
+			document.cookie = 'controlPermalink=' + params.join('/') + ';path=/';
+		},
+		// Set controlPermalink at map position
+		action: function() {
+			window.location.href = window.location.pathname + '#' + params.join('/');
+		}
+	});
+}
+
+/**
  * GPS control
  */
 function controlGPS() {
@@ -1151,6 +1116,102 @@ ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
 //TODO TEST full screen limité en hauteur (mobile, ...)
 
 /**
+ * GPX file loader control
+ */
+function controlLoadGPX() {
+	var el = document.createElement('input'),
+		button = controlButton('&uArr;', {
+			title: 'Visualiser un fichier GPX sur la carte',
+			action: function() {
+				el.click();
+			}
+		}),
+		reader = new FileReader();
+
+	el.type = 'file';
+	el.addEventListener('change', function() {
+		reader.readAsText(el.files[0]);
+	});
+
+	reader.onload = function() {
+		var format = new ol.format.GPX(),
+			source = new ol.source.Vector({
+				format: format,
+			}),
+			vector = new ol.layer.Vector({
+				source: source
+			});
+		button.getMap().addLayer(vector);
+		source.addFeatures(format.readFeatures(reader.result, {
+			dataProjection: 'EPSG:4326',
+			featureProjection: 'EPSG:3857'
+		}));
+
+		button.getMap().getView().fit(source.getExtent());
+	};
+	return button;
+}
+
+/**
+ * GPX file downloader control
+ */
+//TODO BUB incompatible avec l'éditeur
+function controlDownloadGPX() {
+	var el = document.createElement('a'),
+		button = controlButton('&dArr;', {
+			title: 'Obtenir un fichier GPX',
+			action: download
+		}),
+		selected = [],
+		select = new ol.interaction.Select();
+	select.on('select', function(e) {
+		selected = e.target.getFeatures().getArray();
+	});
+
+	// For Moz
+	el.target = '_blank';
+	el.style = 'display:none;opacity:0;color:transparent;';
+	(document.body || document.documentElement).appendChild(el);
+
+	button.setMap = function(map) {
+		ol.control.Control.prototype.setMap.call(this, map);
+		map.addInteraction(select);
+	}
+
+	function download() {
+		if (!selected.length)
+			alert('Shift+Clic pour sélectionner les traces à sauvegarder');
+		else {
+
+			var fileName = 'trace.gpx',
+				file = new Blob([new ol.format.GPX().writeFeatures(selected)], {
+					type: 'application/gpx+xml'
+				});
+
+			// For IE/Edge
+			if (typeof navigator.msSaveOrOpenBlob !== 'undefined')
+				return navigator.msSaveOrOpenBlob(file, fileName);
+			else if (typeof navigator.msSaveBlob !== 'undefined')
+				return navigator.msSaveBlob(file, fileName);
+
+			el.href = URL.createObjectURL(file);
+			el.download = fileName;
+
+			if (typeof el.click === 'function')
+				el.click();
+			else
+				el.dispatchEvent(new MouseEvent('click', {
+					view: window,
+					bubbles: true,
+					cancelable: true
+				}));
+		}
+	}
+
+	return button;
+}
+
+/**
  * Controls examples
  */
 function controlsCollection() {
@@ -1159,13 +1220,14 @@ function controlsCollection() {
 		new ol.control.Attribution({
 			collapsible: false // Attribution always open
 		}),
+//TODO BUG plus de fullscreen
 		new ol.control.FullScreen({
 			label: '\u21d4',
 			labelActive: '\u21ce',
 			tipLabel: 'Plein écran'
 		}),
 		new ol.control.ScaleLine(),
-//TODO		new ol.control.LengthLine(),
+		new ol.control.LengthLine(),
 		new ol.control.MousePosition({
 			coordinateFormat: ol.coordinate.createStringXY(5),
 			projection: 'EPSG:4326',
@@ -1179,10 +1241,12 @@ function controlsCollection() {
 		new Geocoder('nominatim', {
 			provider: 'osm',
 			lang: 'FR',
+//TODO BUG pas de commentaire en survolant
 			placeholder: 'Recherche par nom' // Initialization of the input field
 		}),
 		controlGPS(),
 		controlLoadGPX(),
+		controlDownloadGPX(),
 		controlButton('&equiv;', {
 			title: 'Imprimer la carte',
 			action: function() {
