@@ -683,7 +683,7 @@ function overlaysCollection() {
 		//TODO OverPass: layerOverpass(),
 		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-		Massifs: layerMassifsWri()
+//		Massifs: layerMassifsWri()
 	};
 }
 
@@ -1122,6 +1122,7 @@ window.addEventListener('load', function() {
 		el.title = 'Recherche par nom';
 }, true);
 
+//TODO BUG : avoir des geoJson sans click pour l'éditeur !!!
 /**
  * GPX file loader control
  */
@@ -1133,28 +1134,43 @@ function controlLoadGPX() {
 				el.click();
 			}
 		}),
+		format = new ol.format.GPX(),
 		reader = new FileReader();
 
 	el.type = 'file';
 	el.addEventListener('change', function() {
 		reader.readAsText(el.files[0]);
+//TODO BUG Failed to execute 'readAsText' on 'FileReader': parameter 1 is not of type 'Blob'.
+//*DCMM*/{var _v=el,_r='ERROR BLOB ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
+//*DCMM*/{var _v=el.files,_r='ERROR BLOB ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 	});
 
 	reader.onload = function() {
-		var format = new ol.format.GPX(),
-			source = new ol.source.Vector({
+		var map = button.getMap(),
+			sourceEditor,
+			ls = map.getLayers().getArray();
+		// Found an active editor. Need to upload the feature here.
+		for (l in ls)
+			if (ls[l].getProperties().title == 'editor')
+				sourceEditor = ls[l].getSource();
+
+		var source = new ol.source.Vector({
 				format: format,
 			}),
 			vector = new ol.layer.Vector({
 				source: source
+			}),
+			features = format.readFeatures(reader.result, {
+				dataProjection: 'EPSG:4326',
+				featureProjection: 'EPSG:3857'
 			});
-		button.getMap().addLayer(vector);
-		source.addFeatures(format.readFeatures(reader.result, {
-			dataProjection: 'EPSG:4326',
-			featureProjection: 'EPSG:3857'
-		}));
-
+		source.addFeatures(features); // For extent measurement
 		button.getMap().getView().fit(source.getExtent());
+
+		if (sourceEditor)
+			sourceEditor.addFeatures(features); // Add the track to the editor
+		else
+			button.getMap().addLayer(vector); // Just display the track on the map
 	};
 	return button;
 }
@@ -1235,8 +1251,8 @@ function controlsCollection() {
 		}),
 		new ol.control.Zoom(),
 		new ol.control.FullScreen({
-//TODO			label: '\u21d4',
-//TODO			labelActive: '\u21ce',
+			label: '\u21d4', // For old navigators support
+			labelActive: '\u21ce',
 			tipLabel: 'Plein écran'
 		}),
 		new ol.control.LengthLine(),
@@ -1281,6 +1297,7 @@ function controlLineEditor(id, snapLayers) {
 			wrapX: false
 		}),
 		layer = new ol.layer.Vector({
+			title: 'editor',
 			source: source,
 			zIndex: 1
 		}),
@@ -1374,6 +1391,7 @@ function controlLineEditor(id, snapLayers) {
 				source.removeFeature(features[1]); // We delete the line
 			else
 			if (ol.events.condition.altKeyOnly(event.mapBrowserEvent)) {
+//*DCMM*/{var _v=features[1],_r='ERROR removeFeature ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 				source.removeFeature(features[1]); // We also delete the line
 
 				var c0 = features[0].getGeometry().flatCoordinates, // The coordinates of the cut point marker
