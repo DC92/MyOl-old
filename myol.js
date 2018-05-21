@@ -13,7 +13,7 @@
 //TODO BEST Superzoom
 //TODO BEST Harmoniser yyyElement ...
 //TODO BEST Site off line, application
-//TODO BEST Pas 'upload/download sur mobile (-> va vers photos !)
+//TODO BEST Pas d'upload/download sur mobile (-> va vers photos !)
 
 //TODO TEST check , à la fin des tablos
 //TODO TEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
@@ -1090,8 +1090,12 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 		element.innerHTML = null;
 	});
 	map.on(['pointermove'], function(event) {
-		var actif = interaction.getMap();
-		if (map.getFeaturesAtPixel(event.pixel, 5)) {
+		var features = map.getFeaturesAtPixel(event.pixel, {
+			hitTolerance: 5
+		});
+
+		var actif = interaction.getMap(); //TODO BEST simplification ?
+		if (features) {
 			if (!actif)
 				map.addInteraction(interaction);
 		} else {
@@ -1140,9 +1144,6 @@ function controlLoadGPX() {
 	el.type = 'file';
 	el.addEventListener('change', function() {
 		reader.readAsText(el.files[0]);
-//TODO TEST Failed to execute 'readAsText' on 'FileReader': parameter 1 is not of type 'Blob'.
-//*DCMM*/{var _v=el,_r='ERROR BLOB ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
-//*DCMM*/{var _v=el.files,_r='ERROR BLOB ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 	});
 
 	reader.onload = function() {
@@ -1176,7 +1177,6 @@ function controlLoadGPX() {
 				vector = new ol.layer.Vector({
 					source: source
 				});
-//TODO BUG : pourquoi il charge 2 features ?
 			button.getMap().addLayer(vector);
 			button.getMap().getView().fit(source.getExtent());
 		}
@@ -1318,8 +1318,8 @@ function controlLineEditor(id, snapLayers) {
 			modify: new ol.interaction.Modify({
 				source: source,
 				deleteCondition: function(event) {
-					return ol.events.condition.altKeyOnly(event) && ol.events.condition.click(event); //HACK because the system don't trig singleClick
-
+					//HACK because the system don't trig singleClick
+					return ol.events.condition.altKeyOnly(event) && ol.events.condition.click(event);
 				}
 			}),
 			draw: new ol.interaction.Draw({
@@ -1353,7 +1353,6 @@ function controlLineEditor(id, snapLayers) {
 
 		// Snap on features external to the editor
 		if (snapLayers)
-			//TODO BEST for (var s = 0; s < snapLayers.length; s++)
 			for (var s in snapLayers)
 				snapLayers[s].getSource().on('change', function() {
 					this.forEachFeature(
@@ -1392,55 +1391,59 @@ function controlLineEditor(id, snapLayers) {
 	interactions.modify.on('modifyend', function(event) {
 		// We retrieve the list of targeted features
 		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
-			hitTolerance: 5
-		});
-		if (features.length > 1 && // If there is a line & a pointer there //TODO TODO : mieux reconnaitre la ligne et le pointeur. => Où est le curseur ? / Point de la ligne proche ?
-			event.mapBrowserEvent.type == 'pointerup') {
-			if (ol.events.condition.altShiftKeysOnly(event.mapBrowserEvent))
-				source.removeFeature(features[features.length-1]); // We delete the line
+				hitTolerance: 5
+			}),
+			pointer = null,
+			vertices = null;
+		for (f in features)
+			if (features[f].getGeometry().flatCoordinates.length == 2)
+				pointer = features[f];
 			else
-			if (ol.events.condition.altKeyOnly(event.mapBrowserEvent)) {
-//TODO TEST 
-//*DCMM*/{var _v=features[1],_r='ERROR removeFeature ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
-				source.removeFeature(features[features.length-1]); // We also delete the line
+				line = features[f];
 
-				var cp = features[features.length-2].getGeometry().flatCoordinates, // The coordinates of the cut point marker
-					vc = features[features.length-1].getGeometry().flatCoordinates, // The coordinates of the vertices of the line to be cut
-					stride = features[features.length-1].getGeometry().stride, // The coordinates of the vertices of the line to be cut
-					cs = [[],[]], //B [[],[]], // The coordinates of the 2 cut segments
-					s = 0;
-				for (var c = 0; c < vc.length; c += stride)
-					// If we found the cutoff point
-					if (cp[0] == vc[c] && cp[1] == vc[c + 1])
-						s++; // We skip it and increment the segment counter
-					else // We add the current point
-						cs[s].push(vc.slice(c));
+		if (pointer && line &&
+			event.mapBrowserEvent.type == 'pointerup') {
 
-				// We draw the 2 ends of lines
-				for (var c in cs)
-					if (cs[c].length > 1) // If they have at least 2 points
-						source.addFeature(new ol.Feature({
-							geometry: new ol.geom.LineString(cs[c], features[features.length-1].getGeometry().layout)
-						}));
+			if (event.mapBrowserEvent.originalEvent.altKey) {
+				source.removeFeature(line); // We delete the line
+
+				if (!event.mapBrowserEvent.originalEvent.ctrlKey) {
+					var cp = pointer.getGeometry().flatCoordinates, // The coordinates of the cut point marker
+						vc = line.getGeometry().flatCoordinates, // The coordinates of the vertices of the line to be cut
+						cs = [[],[]], // [[],[]], // The coordinates of the 2 cut segments
+						s = 0;
+					for (var c = 0; c < vc.length; c += line.getGeometry().stride)
+						// If we found the cutoff point
+						if (cp[0] == vc[c] && cp[1] == vc[c + 1])
+							s++; // We skip it and increment the segment counter
+						else // We add the current point
+							cs[s].push(vc.slice(c));
+
+					// We draw the 2 ends of lines
+					for (var c in cs)
+						if (cs[c].length > 1) // If they have at least 2 points
+							source.addFeature(new ol.Feature({
+								geometry: new ol.geom.LineString(cs[c], line.getGeometry().layout)
+							}));
+
+				}
 			}
 		}
 		stickLines();
 	});
 
 	// Join lines with identical ends
+	//TODO BUG ne marche pas pour de longues lignes
 	function stickLines() {
-		return; //TODO BUG
 		var features = source.getFeatures(),
 			lines = [];
 
 		// We make a big table with all the lines
-		//TODO BEST for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
 			var geometry = features[f].getGeometry(),
 				coordinates = []; // We will put them back in lonlat chart
 			for (var c = 0; c < geometry.flatCoordinates.length; c += geometry.stride)
 				coordinates.push(geometry.flatCoordinates.slice(c));
-//TODO ???				coordinates.push(geometry.flatCoordinates.slice(c, c + 2));
 
 			// In both senses
 			for (var i = 0; i < 2; i++) {
