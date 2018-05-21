@@ -42,6 +42,26 @@
 	height: 1.375em;
 }
 
+/* PRINT */
+@media print {
+	
+	html, body{
+		padding:0px!important;
+		margin:0px!important;
+    wpage-break-before: avoid;
+    wpage-break-after: avoid;
+    width:100%;
+    wheight:100%;
+	}
+	wbody{display:none;}
+.ol-viewport {
+	wdisplay:block;
+	  position: absolute;
+	  wheight: 100% !important;
+	  width: 100% !important;
+  }
+}
+
 /* OVERPASS */
 .overpass-popup{
 	background-color: #def;

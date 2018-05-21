@@ -3,10 +3,10 @@
 // (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
 //
 // Code & all tiled layers use EPSG:3857 spherical mercator projection
-// Each feature is included in a single function that you can include separately
+// Each adaptation is included in a single JS function that you can include separately (check dependencies if any)
 //******************************************************************************
 
-//TODO impression full format page
+//TODO BUG http://dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62&bbox=3.8125991821289062,45.488859788464765,3.9499282836914067,45.585051795433884. Raison : l’en-tête CORS « Access-Control-Allow-Origin » est manquant.
 
 //TODO BEST Voir traffic réseau (autre couche = ord survey ??)
 //TODO BEST mem cookie couches overlay
@@ -296,7 +296,7 @@ function layersCollection(keys) {
 //***************************************************************
 // VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
-//TODO sélecteur de type de pictos
+//TODO TODO sélecteur de type de pictos
 /**
  * GeoJson POI layer
  */
@@ -492,7 +492,7 @@ function chemineurLayer() {
  * From: https://openlayers.org/en/latest/examples/vector-osm.html
  * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
  */
-//TODO BUG REDO
+//TODO REDO
 function layerOverpass(request) {
 	request = request || { // Default selection
 		// icon_name: '[overpass selection]'
@@ -680,10 +680,10 @@ function layerOverpass(request) {
  */
 function overlaysCollection() {
 	return {
-		//TODO OverPass: layerOverpass(),
+		//TODO TODO OverPass: layerOverpass(),
 		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-//		Massifs: layerMassifsWri()
+//TODO		Massifs: layerMassifsWri()
 	};
 }
 
@@ -782,8 +782,9 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
  */
 var nextButtonTopPos = 6; // Top position of next button (em)
 //TODO BEST automatiser position des autres boutons
+//TODO BUG ne pas colorier le bouton en sombre lors du clic
+//TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
 
-//TODO nepas colorier le bouton en sombre lors du clic
 function controlButton(label, options) {
 	var button = document.createElement('button');
 	button.innerHTML = label;
@@ -970,12 +971,12 @@ function controlPermalink(options) {
 					view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
 					// Also select layer
 					var inputs = document.getElementsByTagName('input');
-					for (var i in inputs) //TODO surveiller BUG ne marche pas tout le temps !!! => for i=0;... ???
+					for (var i in inputs) //TODO TEST surveiller : ne marche pas tout le temps !!! => for i=0;... ???
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 							inputs[i].value == decodeURI(params[3]);
-//TODO surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
-//TODO surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
+//TODO TEST surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+//TODO TEST surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
 
@@ -1122,7 +1123,6 @@ window.addEventListener('load', function() {
 		el.title = 'Recherche par nom';
 }, true);
 
-//TODO BUG : avoir des geoJson sans click pour l'éditeur !!!
 /**
  * GPX file loader control
  */
@@ -1140,37 +1140,46 @@ function controlLoadGPX() {
 	el.type = 'file';
 	el.addEventListener('change', function() {
 		reader.readAsText(el.files[0]);
-//TODO BUG Failed to execute 'readAsText' on 'FileReader': parameter 1 is not of type 'Blob'.
+//TODO TEST Failed to execute 'readAsText' on 'FileReader': parameter 1 is not of type 'Blob'.
 //*DCMM*/{var _v=el,_r='ERROR BLOB ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 //*DCMM*/{var _v=el.files,_r='ERROR BLOB ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 	});
 
 	reader.onload = function() {
 		var map = button.getMap(),
+			features = format.readFeatures(reader.result, {
+				dataProjection: 'EPSG:4326',
+				featureProjection: 'EPSG:3857'
+			}),
+			// Find an active editor. Need to upload the feature here.
 			sourceEditor,
 			ls = map.getLayers().getArray();
-		// Found an active editor. Need to upload the feature here.
 		for (l in ls)
 			if (ls[l].getProperties().title == 'editor')
 				sourceEditor = ls[l].getSource();
 
-		var source = new ol.source.Vector({
-				format: format,
-			}),
-			vector = new ol.layer.Vector({
-				source: source
-			}),
-			features = format.readFeatures(reader.result, {
-				dataProjection: 'EPSG:4326',
-				featureProjection: 'EPSG:3857'
-			});
-		source.addFeatures(features); // For extent measurement
-		button.getMap().getView().fit(source.getExtent());
+		if (sourceEditor) {
+			// Add the track to the editor
+			sourceEditor.addFeatures(features);
 
-		if (sourceEditor)
-			sourceEditor.addFeatures(features); // Add the track to the editor
-		else
-			button.getMap().addLayer(vector); // Just display the track on the map
+			// Zomm the map on the added features
+			var extent = ol.extent.createOrUpdateEmpty();
+			for (f in features)
+				ol.extent.extend(extent, features[f].getGeometry().getExtent());
+			button.getMap().getView().fit(extent);
+		} else {
+			// Display the track on the map
+			var source = new ol.source.Vector({
+					format: format,
+					features: features
+				}),
+				vector = new ol.layer.Vector({
+					source: source
+				});
+//TODO BUG : pourquoi il charge 2 features ?
+			button.getMap().addLayer(vector);
+			button.getMap().getView().fit(source.getExtent());
+		}
 	};
 	return button;
 }
@@ -1237,7 +1246,6 @@ function controlDownloadGPX() {
 /**
  * Controls examples
  */
-//TODO BUG mobiles ! boutons trop grand ou trop pres
 function controlsCollection() {
 	return [
 		new ol.control.ScaleLine(),
@@ -1270,6 +1278,7 @@ function controlsCollection() {
 		controlGPS(),
 		controlLoadGPX(),
 		controlDownloadGPX(),
+//TODO TODO impression full format page -> CSS
 		controlButton('&equiv;', {
 			title: 'Imprimer la carte',
 			action: function() {
@@ -1385,32 +1394,33 @@ function controlLineEditor(id, snapLayers) {
 		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
 			hitTolerance: 5
 		});
-		if (features.length > 1 && // If there is anything there
+		if (features.length > 1 && // If there is a line & a pointer there //TODO TODO : mieux reconnaitre la ligne et le pointeur. => Où est le curseur ? / Point de la ligne proche ?
 			event.mapBrowserEvent.type == 'pointerup') {
 			if (ol.events.condition.altShiftKeysOnly(event.mapBrowserEvent))
-				source.removeFeature(features[1]); // We delete the line
+				source.removeFeature(features[features.length-1]); // We delete the line
 			else
 			if (ol.events.condition.altKeyOnly(event.mapBrowserEvent)) {
+//TODO TEST 
 //*DCMM*/{var _v=features[1],_r='ERROR removeFeature ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
-				source.removeFeature(features[1]); // We also delete the line
+				source.removeFeature(features[features.length-1]); // We also delete the line
 
-				var c0 = features[0].getGeometry().flatCoordinates, // The coordinates of the cut point marker
-					c1 = features[1].getGeometry().flatCoordinates, // The coordinates of the vertices of the line to be cut
-					cs = [[],[]], //B[[],[]] // The coordinates of the 2 cut segments
+				var cp = features[features.length-2].getGeometry().flatCoordinates, // The coordinates of the cut point marker
+					vc = features[features.length-1].getGeometry().flatCoordinates, // The coordinates of the vertices of the line to be cut
+					stride = features[features.length-1].getGeometry().stride, // The coordinates of the vertices of the line to be cut
+					cs = [[],[]], //B [[],[]], // The coordinates of the 2 cut segments
 					s = 0;
-				for (i = 0; i < c1.length / 2; i++)
+				for (var c = 0; c < vc.length; c += stride)
 					// If we found the cutoff point
-					if (c0[0] == c1[2 * i] && c0[1] == c1[2 * i + 1])
+					if (cp[0] == vc[c] && cp[1] == vc[c + 1])
 						s++; // We skip it and increment the segment counter
 					else // We add the current point
-						cs[s].push([c1[2 * i], c1[2 * i + 1]]);
+						cs[s].push(vc.slice(c));
 
 				// We draw the 2 ends of lines
-				//TODO BEST for (var f = 0; f < cs.length; f++)
-				for (var f in cs)
-					if (cs[f].length > 1) // If they have at least 2 points
+				for (var c in cs)
+					if (cs[c].length > 1) // If they have at least 2 points
 						source.addFeature(new ol.Feature({
-							geometry: new ol.geom.LineString(cs[f])
+							geometry: new ol.geom.LineString(cs[c], features[features.length-1].getGeometry().layout)
 						}));
 			}
 		}
@@ -1419,16 +1429,18 @@ function controlLineEditor(id, snapLayers) {
 
 	// Join lines with identical ends
 	function stickLines() {
+		return; //TODO BUG
 		var features = source.getFeatures(),
 			lines = [];
 
 		// We make a big table with all the lines
 		//TODO BEST for (var f = 0; f < features.length; f++) {
 		for (var f in features) {
-			var flatCoordinates = features[f].getGeometry().flatCoordinates, // OL provides coordinates in the same table level, lon & lat mixed
+			var geometry = features[f].getGeometry(),
 				coordinates = []; // We will put them back in lonlat chart
-			for (var c = 0; c < flatCoordinates.length / 2; c++)
-				coordinates.push(flatCoordinates.slice(c * 2, c * 2 + 2));
+			for (var c = 0; c < geometry.flatCoordinates.length; c += geometry.stride)
+				coordinates.push(geometry.flatCoordinates.slice(c));
+//TODO ???				coordinates.push(geometry.flatCoordinates.slice(c, c + 2));
 
 			// In both senses
 			for (var i = 0; i < 2; i++) {
