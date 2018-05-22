@@ -1,13 +1,16 @@
-//******************************************************************************
-// OPENLAYERS V4 ADAPTATION - https://openlayers.org/
-// (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
-//
-// Code & all tiled layers use EPSG:3857 spherical mercator projection
-// Each adaptation is included in a single JS function that you can include separately (check dependencies if any)
-//******************************************************************************
+/*!
+ * OPENLAYERS V4 ADAPTATION - https://openlayers.org/
+ * (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
+ *
+ * Code & all tiled layers use EPSG:3857 spherical mercator projection
+ * Each adaptation is included in a single JS function
+ * that you can include separately (check dependencies if any)
+ * Feel free to use, modify & share as you want
+ */
 //TODO BEST Harmoniser yyyElement ...
 //TODO BEST Site off line, application
-//TODO TEST check , à la fin des tablos
+//TODO END http://jsbeautifier.org/
+//TODO END check , à la fin des tablos : http://jshint.com/
 /**
  * HACK Call onAdd(map) on layers added to a map
  */
@@ -139,7 +142,7 @@ function layerTileIncomplete(extent, sources) {
 
 		// Search for sources according to the map resolution
 		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).filter(function(event) {
+			resolution = Object.keys(sources).filter(function(event) { //TODO BEST réécrire avec autre chose que filter !!! (ou écriture silplifiée)
 				return event > view.getResolution();
 			})[0];
 
@@ -191,7 +194,7 @@ function layerIGM() {
 				layers: layer
 			},
 			attributions: '<a href="http://www.pcn.minambiente.it/viewer">IGM</a>'
-		})
+		});
 	}
 
 	return layerTileIncomplete([660124, 4131313, 2113957, 5958411], { // EPSG:6875 (Italie)
@@ -249,8 +252,14 @@ function layersCollection(keys) {
 	return {
 		'OSM-FR': layerOSM('//{a-c}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png'),
 		'OSM': layerOSM('//{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
-		'MRI': layerOSM('//maps.refuges.info/hiking/{z}/{x}/{y}.png', '<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'),
-		'Hike & Bike': layerOSM('http://{a-c}.tiles.wmflabs.org/hikebike/{z}/{x}/{y}.png', '<a href="http://www.hikebikemap.org/">hikebikemap.org</a>'), // Not on https
+		'MRI': layerOSM(
+			'//maps.refuges.info/hiking/{z}/{x}/{y}.png',
+			'<a href="http://wiki.openstreetmap.org/wiki/Hiking/mri">MRI</a>'
+		),
+		'Hike & Bike': layerOSM(
+			'http://{a-c}.tiles.wmflabs.org/hikebike/{z}/{x}/{y}.png',
+			'<a href="http://www.hikebikemap.org/">hikebikemap.org</a>'
+		), // Not on https
 		'Autriche': layerKompass('KOMPASS Touristik'),
 		//'Kompas': layerKompass(, 'KOMPASS'),
 		//'Kompas summer': layerKompass('Summer OSM'),
@@ -341,46 +350,50 @@ function layerGeoJson(options) {
 				popup.setPosition(undefined); // Hide label by default if none feature here
 
 				// Search the hovered the feature(s)
-				map_.forEachFeatureAtPixel(event.pixel, function(feature_, layer_) {
-					if (!popup.getPosition() && // Only for the top one
-						layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
-						var properties_ = layer_.options_.label(feature_.getProperties());
-						map_.elPop.innerHTML = properties_.text; // Set the label inner
-						map_.elPop.className = 'popup ' + (properties_.className || '');
-						// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
-
-						// Now, what anchor for the label () ?
-						var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
-						if (coordinates_.length != 2)
-							coordinates_ = event.coordinate; // If it's a surface, over the pointer
-						popup.setPosition(map_.getView().getCenter()); // For popup size calculation
-
-						// Well calculated shift of the label regarding the pointer position
-						var pixel = map_.getPixelFromCoordinate(coordinates_);
-						if (pixel[1] < map_.elPop.clientHeight + 12) { // On the top of the map (not enough space for it)
-							pixel[0] += pixel[0] < map_.getSize()[0] / 2 ? 10 : -map_.elPop.clientWidth - 10;
-							pixel[1] += 2 - pixel[1];
-						} else {
-							pixel[0] -= map_.elPop.clientWidth * pixel[0] / map_.getSize()[0];
-							pixel[1] -= map_.elPop.clientHeight + 10;
-						}
-						popup.setPosition(map_.getCoordinateFromPixel(pixel));
-					}
-					if (layer_ && layer_.options_ && layer_.options_.click)
-						map_.getViewport().style.cursor = 'pointer';
-				});
+				map_.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
 			});
+
+			function checkFeatureAtPixelHovered(feature_, layer_) {
+				if (!popup.getPosition() && // Only for the top one
+					layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
+					var properties_ = layer_.options_.label(feature_.getProperties());
+					map_.elPop.innerHTML = properties_.text; // Set the label inner
+					map_.elPop.className = 'popup ' + (properties_.className || '');
+					// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
+
+					// Now, what anchor for the label () ?
+					var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
+					if (coordinates_.length != 2)
+						coordinates_ = event.coordinate; // If it's a surface, over the pointer
+					popup.setPosition(map_.getView().getCenter()); // For popup size calculation
+
+					// Well calculated shift of the label regarding the pointer position
+					var pixel = map_.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
+					if (pixel[1] < map_.elPop.clientHeight + 12) { // On the top of the map (not enough space for it)
+						pixel[0] += pixel[0] < map_.getSize()[0] / 2 ? 10 : -map_.elPop.clientWidth - 10;
+						pixel[1] += 2 - pixel[1];
+					} else {
+						pixel[0] -= map_.elPop.clientWidth * pixel[0] / map_.getSize()[0];
+						pixel[1] -= map_.elPop.clientHeight + 10;
+					}
+					popup.setPosition(map_.getCoordinateFromPixel(pixel));
+				}
+				if (layer_ && layer_.options_ && layer_.options_.click)
+					map_.getViewport().style.cursor = 'pointer';
+			}
 
 			// Click on feature
 			map_.on('click', function(event) {
 				// Search the clicked the feature(s)
-				map_.forEachFeatureAtPixel(event.pixel, function(feature_, layer_) {
-					if (layer_ && layer_.options_ && typeof layer_.options_.click == 'function')
-						layer_.options_.click(feature_.getProperties());
-				}, {
+				map_.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
 					hitTolerance: 5
 				});
 			});
+
+			function checkFeatureAtPixelClicked(feature_, layer_) {
+				if (layer_ && layer_.options_ && typeof layer_.options_.click == 'function')
+					layer_.options_.click(feature_.getProperties());
+			}
 		}
 	};
 
@@ -496,7 +509,7 @@ function layerOverpass(request) {
 		'cabane-non-gardee': '["building"="cabin"]',
 		abri: '["amenity"="shelter"]',
 		hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
-	}
+	};
 
 	var popup = new ol.Overlay(({
 		positioning: 'bottom-center',
@@ -510,18 +523,18 @@ function layerOverpass(request) {
 
 	function overpassProperties(feature) {
 		var p = feature.getProperties();
-		var r = { // Default
+		var ret = { // Default
 			icon: 'batiment-en-montagne',
 			name: 'Inconnu'
 		};
 
 		// Icon
-		for (var i in request) { // hotel: ["tourism"="hotel|guest"]...
-			var selection = request[i].split('"'), // [ tourism = hotel|guest ] ...
+		for (var r in request) { // hotel: ["tourism"="hotel|guest"]...
+			var selection = request[r].split('"'), // [ tourism = hotel|guest ] ...
 				selectedProperty = p[selection[1]]; // tourism: 'guest'
 			if (selectedProperty &&
 				selectedProperty.match(new RegExp(selection[3]))) // hotel|guest
-				r.name = r.icon = i;
+				r.name = r.icon = r;
 		}
 
 		// Name
@@ -536,11 +549,11 @@ function layerOverpass(request) {
 				supermarket: 'supermarché',
 				bus_stop: 'arrêt de bus'
 			},
-			n = ['old_name', 'alt_name', 'official_name', 'short_name', 'name:ch', 'name:en', 'name:fr', 'name'];
-		for (var i in n)
-			if (p[n[i]])
-				r.name = p[n[i]];
-		r.name = r.name.replace( // Word translation if necessary
+			names = ['old_name', 'alt_name', 'official_name', 'short_name', 'name:ch', 'name:en', 'name:fr', 'name'];
+		for (var n in names)
+			if (p[names[n]])
+				ret.name = p[names[n]];
+		ret.name = ret.name.replace( // Word translation if necessary
 			new RegExp(Object.keys(language).join('|'), 'gi'),
 			function(m) {
 				return language[m.toLowerCase()];
@@ -549,15 +562,15 @@ function layerOverpass(request) {
 
 		// Fallback for contact:xxx properties
 		for (var i in p) {
-			is = i.split(':');
+			var is = i.split(':');
 			if (is[0] == 'contact' && is.length == 2)
 				p[is[1]] = p[i];
 		}
 
 		// Popup
 		var txt = [
-			'<b>' + r.name + '</b>', [
-				r.icon,
+			'<b>' + ret.name + '</b>', [
+				ret.icon,
 				'*'.repeat(p.stars),
 				p.rooms ? p.rooms + 'ch' : '',
 				p.beds ? p.beds + 'p' : '',
@@ -580,12 +593,28 @@ function layerOverpass(request) {
 			'Voir sur <a href="http://www.openstreetmap.org/' + p.tag + '/' + feature.getId() + '" target="_blank">OSM</a> &copy;',
 		];
 
-		r.popup = ('<p>' + txt.join('</p><p>') + '</p>')
+		ret.popup = ('<p>' + txt.join('</p><p>') + '</p>')
 			.replace(/,/g, ' ').replace(/\s+/g, ' ').replace(/\s+<\/p>/g, '<\/p>').replace(/<p>\s*<\/p>/ig, '');
 
-		return r;
+		return ret;
 	}
+	var client = new XMLHttpRequest();
 
+	function ajaxLoaded() { //TODO REDO voir si on met inline ou pas ???
+		// Optionaly replace way (surface) by node (centered point)
+		var xml = client.responseText.replace(
+			/<way id="([0-9]+)">\s*<center lat="([0-9\.]+)" lon="([0-9\.]+)"\/>(.*)/g,
+			'<node id="$1" lat="$2" lon="$3">'
+		).replace(
+			/<\/(way|node)>/g,
+			'<tag k="tag" v="$1"/></node>'
+		);
+
+		var features = new ol.format.OSMXML().readFeatures(xml, {
+			featureProjection: map.getView().getProjection() //TODO BUG MISSING map !!
+		});
+		source.addFeatures(features); //TODO BUG MISSING source
+	}
 	return new ol.layer.Vector({
 		source: new ol.source.Vector({
 			format: new ol.format.OSMXML(),
@@ -594,7 +623,6 @@ function layerOverpass(request) {
 			loader: function(extent, resolution, projection) { // AJAX XML loader for OSM overpass
 				// Prepare arguments
 				var source = this, // To reuse it in a later closure function (load)
-					client = new XMLHttpRequest(),
 					ex4326 = ol.proj.transformExtent(extent, projection, 'EPSG:4326'),
 					bbox = '(' + ex4326[1] + ',' + ex4326[0] + ',' + ex4326[3] + ',' + ex4326[2] + ')',
 					args = [],
@@ -607,21 +635,7 @@ function layerOverpass(request) {
 				client.send('(' + args.join(';') + ');out center;');
 
 				// Receive the response
-				client.addEventListener('load', function() {
-					// Optionaly replace way (surface) by node (centered point)
-					var xml = client.responseText.replace(
-						/<way id="([0-9]+)">\s*<center lat="([0-9\.]+)" lon="([0-9\.]+)"\/>(.*)/g,
-						'<node id="$1" lat="$2" lon="$3">'
-					).replace(
-						/<\/(way|node)>/g,
-						'<tag k="tag" v="$1"/></node>'
-					);
-
-					var features = new ol.format.OSMXML().readFeatures(xml, {
-						featureProjection: map.getView().getProjection()
-					});
-					source.addFeatures(features);
-				});
+				client.addEventListener('load', ajaxLoaded);
 			}
 		}),
 
@@ -641,7 +655,7 @@ function layerOverpass(request) {
 					src: '//www.refuges.info/images/icones/' + overpassProperties(feature).icon + '.png' // hotel
 				}),
 				offset: [8, 8]
-			})
+			});
 		},
 
 		hover: function(feature) {
@@ -675,7 +689,7 @@ function overlaysCollection() {
 		//TODO TODO OverPass: layerOverpass(),
 		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-		//TODO		Massifs: layerMassifsWri()
+		//TODO TODO Massifs: layerMassifsWri()
 	};
 }
 
@@ -690,7 +704,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 		iconStyle = new ol.style.Style({
 			image: new ol.style.Icon(({
 				src: imageUrl,
-				anchor: [.5, .5]
+				anchor: [0.5, 0.5]
 			}))
 		}),
 		iconFeature = new ol.Feature({
@@ -715,7 +729,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 				displayLL(this.getCoordinates());
 			});
 		}
-	}
+	};
 
 	// Show a coordinate
 	function displayLL(ll) {
@@ -751,7 +765,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 		var coord = ol.proj.transform(point.getCoordinates(), 'EPSG:3857', 'EPSG:' + projection); // La position actuelle du marqueur
 		coord[nol] = parseFloat(event.value); // On change la valeur qui a été modifiée
 		point.setCoordinates(ol.proj.transform(coord, 'EPSG:' + projection, 'EPSG:3857')); // On repositionne le marqueur
-	}
+	};
 
 	return layer;
 }
@@ -845,12 +859,12 @@ function controlLayers(baseLayers, overLayers) {
 			// Base layers selector init
 			for (var name in baseLayers) {
 				var checked = selectorElement.childElementCount ? '' : ' checked="checked"',
-					lineElement = document.createElement('div');
-				lineElement.innerHTML =
+					baseElement = document.createElement('div');
+				baseElement.innerHTML =
 					'<input type="checkbox" name="base"' + checked + ' value="' + name + '">' +
 					'<span title="">' + name + '</span>';
-				lineElement.onclick = checkLayer;
-				selectorElement.appendChild(lineElement);
+				baseElement.onclick = checkLayer;
+				selectorElement.appendChild(baseElement);
 
 				baseLayers[name].setVisible(!!checked);
 				baseLayers[name].name_ = name;
@@ -860,28 +874,28 @@ function controlLayers(baseLayers, overLayers) {
 			// Independant layers selector init
 			selectorElement.appendChild(document.createElement('hr'));
 			for (name in overLayers) {
-				var lineElement = document.createElement('div');
-				lineElement.innerHTML =
+				var overlayElement = document.createElement('div');
+				overlayElement.innerHTML =
 					'<input type="checkbox" name="over" checked="checked" value="' + name + '">' +
 					'<span title="">' + name + '</span>';
-				lineElement.onclick = displayLayerSelector;
-				selectorElement.appendChild(lineElement);
+				overlayElement.onclick = displayLayerSelector;
+				selectorElement.appendChild(overlayElement);
 
 				map.addLayer(overLayers[name]);
 			}
 
 			// Hover the button open the selector
-			control.element.firstElementChild.onmouseover = function() {
+			control.element.firstElementChild.onmouseover = function() { //TODO sortir function
 				displayLayerSelector(true);
 			};
 
 			// Click or change map size close the selector
-			map.on(['click', 'change:size'], function() {
+			map.on(['click', 'change:size'], function() { //TODO sortir function
 				displayLayerSelector(false);
 			});
 
 			// Leaving the map close the selector
-			window.addEventListener('mousemove', function(event) {
+			window.addEventListener('mousemove', function(event) { //TODO sortir function
 				var divRect = map.getTargetElement().getBoundingClientRect();
 				if (event.clientX < divRect.left || event.clientX > divRect.right ||
 					event.clientY < divRect.top || event.clientY > divRect.bottom)
@@ -951,7 +965,7 @@ function controlPermalink(options) {
 			var view = event.map.getView();
 
 			// Set the map at controlPermalink position
-			if (options.init != false && // If use hash & cookies
+			if (options.init !== false && // If use hash & cookies
 				typeof params == 'undefined') { // Only once
 				params = location.hash.substr(1).split('/'), // Get url controlPermalink
 					cookie = document.cookie.match(/controlPermalink=([^;]+)/); // Get cookie controlPermalink
@@ -1009,7 +1023,7 @@ function controlGPS() {
 		}),
 		style_ = new ol.style.Style({
 			image: new ol.style.Icon({
-				anchor: [.5, .5], // Picto marking the position on the map
+				anchor: [0.5, 0.5], // Picto marking the position on the map
 				src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAA7VBMVEUAAAA/X39UVHFMZn9NXnRPX3RMW3VPXXNOXHJOXXNNXHNOXXFPXHNNXXFPXHFOW3NPXHNPXXJPXXFPXXNNXXFNW3NOXHJPW25PXXNRX3NSYHVSYHZ0fIx1fo13gI95hJR6go96g5B7hpZ8hZV9hpZ9h5d/iZiBi5ucoquepa+fpbGhqbSiqbXNbm7Ob2/OcHDOcXHOcnLPdHTQdXXWiIjXiorXjIzenp7eoKDgpKTgpaXgpqbks7TktLTktbXnubnr2drr5+nr6Ons29vs29zs6Ors6ert6uvt6uzu6uz18fH18fL68PD++/v+/Pw8gTaQAAAAFnRSTlMACAkKLjAylJWWmJmdv8HD19ja2/n6GaRWtgAAAMxJREFUGBkFwctqwkAUgOH/nMnVzuDGFhRKKVjf/226cKWbQgNVkphMzFz6fQJQlY0S/boCAqa1AMAwJwRjW4wtcxgS05gEa3HHOYipzxP9ZKot9tR5ZfIff7FetMQcf4tDVexNd1IKbbA+7S59f9mlZGmMVVdpXN+3gwh+RiGLAjkDGTQSjHfhes3OV0+CkXrdL/4gzVunxQ+DYZNvn+Mg6aav35GH8OJS/SUrVTw/9e4FtRvypsbPwmPMAto6AOC+ZASgLBpDmGMA/gHW2Vtk8HXNjQAAAABJRU5ErkJggg=='
 			})
 		}),
@@ -1065,19 +1079,21 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 		interaction = new ol.interaction.Select({
 			condition: ol.events.condition.pointerMove,
 			hitTolerance: 5,
-			filter: function(f) {
-				var length = ol.Sphere.getLength(f.getGeometry());
-				if (length >= 100000)
-					element.innerHTML = (Math.round(length / 1000)) + ' km';
-				else if (length >= 10000)
-					element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-				else if (length >= 1000)
-					element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-				else if (length >= 1)
-					element.innerHTML = (Math.round(length)) + ' m';
-				return length; // Continue hover if we are above a line
-			}
+			filter: calculateLength // HACK : use of filter to perform an action
 		});
+
+	function calculateLength(f) {
+		var length = ol.Sphere.getLength(f.getGeometry());
+		if (length >= 100000)
+			element.innerHTML = (Math.round(length / 1000)) + ' km';
+		else if (length >= 10000)
+			element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+		else if (length >= 1000)
+			element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+		else if (length >= 1)
+			element.innerHTML = (Math.round(length)) + ' m';
+		return length > 0; // Continue hover if we are above a line
+	}
 
 	map.on(['changed'], function() { // Momentary hide hover if anything has changed
 		map.removeInteraction(interaction);
@@ -1103,7 +1119,7 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 /**
  * HACK to prevent wrong full screen size with Chrome on Windows
  */
- //TODO optimiser
+//TODO optimiser
 var formerHandleFullScreenChange = ol.control.FullScreen.prototype.handleFullScreenChange_;
 ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
 	formerHandleFullScreenChange.call(this);
@@ -1117,7 +1133,7 @@ ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
  * HACK to display a title on the geocoder
  */
 window.addEventListener('load', function() {
-	el = document.getElementById('gcd-button-control');
+	var el = document.getElementById('gcd-button-control');
 	if (el)
 		el.title = 'Recherche par nom';
 }, true);
@@ -1151,7 +1167,7 @@ function controlLoadGPX() {
 			// Find an active editor. Need to upload the feature here.
 			sourceEditor,
 			ls = map.getLayers().getArray();
-		for (l in ls)
+		for (var l in ls)
 			if (ls[l].getProperties().title == 'editor')
 				sourceEditor = ls[l].getSource();
 
@@ -1161,7 +1177,7 @@ function controlLoadGPX() {
 
 			// Zomm the map on the added features
 			var extent = ol.extent.createOrUpdateEmpty();
-			for (f in features)
+			for (var f in features)
 				ol.extent.extend(extent, features[f].getGeometry().getExtent());
 			button.getMap().getView().fit(extent);
 		} else {
@@ -1204,7 +1220,7 @@ function controlDownloadGPX() {
 	button.setMap = function(map) {
 		ol.control.Control.prototype.setMap.call(this, map);
 		map.addInteraction(select);
-	}
+	};
 
 	function download() {
 		if (!selected.length)
@@ -1350,14 +1366,17 @@ function controlLineEditor(id, snapLayers) {
 		// Snap on features external to the editor
 		if (snapLayers)
 			for (var s in snapLayers)
-				snapLayers[s].getSource().on('change', function() {
-					this.forEachFeature(
-						function(f) {
-							interactions.snap.addFeature(f);
-						}
-					);
-				});
+				snapLayers[s].getSource().on('change', snapFeatures);
+
 		setMode(true); // Set edit mode by default
+	};
+
+	function snapFeatures() {
+		this.forEachFeature(
+			function(f) {
+				interactions.snap.addFeature(f);
+			}
+		);
 	}
 
 	function setMode(em) {
@@ -1390,8 +1409,8 @@ function controlLineEditor(id, snapLayers) {
 				hitTolerance: 5
 			}),
 			pointer = null,
-			vertices = null;
-		for (f in features)
+			line = null;
+		for (var f in features)
 			if (features[f].getGeometry().flatCoordinates.length == 2)
 				pointer = features[f];
 			else
@@ -1408,12 +1427,12 @@ function controlLineEditor(id, snapLayers) {
 						vc = line.getGeometry().flatCoordinates, // The coordinates of the vertices of the line to be cut
 						cs = [[],[]], // [[],[]], // The coordinates of the 2 cut segments
 						s = 0;
-					for (var c = 0; c < vc.length; c += line.getGeometry().stride)
+					for (var cl = 0; cl < vc.length; cl += line.getGeometry().stride)
 						// If we found the cutoff point
-						if (cp[0] == vc[c] && cp[1] == vc[c + 1])
+						if (cp[0] == vc[cl] && cp[1] == vc[cl + 1])
 							s++; // We skip it and increment the segment counter
 						else // We add the current point
-							cs[s].push(vc.slice(c));
+							cs[s].push(vc.slice(cl));
 
 					// We draw the 2 ends of lines
 					for (var c in cs)
@@ -1430,50 +1449,44 @@ function controlLineEditor(id, snapLayers) {
 
 	// Join lines with identical ends
 	function stickLines() {
-		var features = source.getFeatures(),
-			lines = [];
-
-		// We make a big table with all the lines
-		for (var f in features) {
-			var geometry = features[f].getGeometry(),
-				coordinates = []; // We will put them back in lonlat chart
-			for (var c = 0; c < geometry.flatCoordinates.length; c += geometry.stride)
-				coordinates.push(geometry.flatCoordinates.slice(c));
-			if (geometry.flatCoordinates.length <= geometry.stride) // If this is a one point line !!
-				source.removeFeature(features[f]); // Delete it
-			else
-				// In both senses
-				for (var i = 0; i < 2; i++) {
-					lines.push({
-						indexFeature: f,
-						premier: coordinates[0], // The first point
-						suite: coordinates.slice(1) // The other points
-					});
-					coordinates = coordinates.reverse(); // And we redo the other way
+		var lines = [],
+			fs = source.getFeatures();
+		for (var f in fs)
+			if (fs[f].getGeometry().getType().indexOf('String') !== -1) { // If it contains strings
+				var cs = fs[f].getGeometry().getCoordinates();
+				if (fs[f].getGeometry().getType() == 'LineString')
+					cs = [cs];
+				for (var c in cs) {
+					var coordinates = cs[c];
+					if (coordinates.length > 1) // If the line owns at least 2 points
+						for (var i in [0, 0]) { // Twice (in both directions)
+							lines.push({
+								feature: fs[f],
+								first: coordinates[0], // The first point
+								suite: coordinates.slice(1) // The other points
+							});
+							coordinates = coordinates.reverse(); // And we redo the other way
+						}
 				}
-		}
-
-		// We are looking for 2 lines with the same first end
-		for (var l in lines) {
-			var found = lines.filter(function(event) {
-				return event.indexFeature != lines[l].indexFeature && // Not the same piece!
-					event.premier[0] == lines[l].premier[0] && // X of the first points is the same
-					event.premier[1] == lines[l].premier[1]; // Y of the first points is the same
-			})[0];
-
-			// We found at least one pair
-			if (typeof found == 'object') {
-				// We delete the 2 lines
-				source.removeFeature(features[found.indexFeature]);
-				source.removeFeature(features[lines[l].indexFeature]);
-
-				// We add one by gluing the 2 ends
-				source.addFeature(new ol.Feature({
-					geometry: new ol.geom.LineString(found.suite.reverse().concat([found.premier]).concat(lines[l].suite))
-				}));
-				return stickLines(); // Restart at the beginning
 			}
-		}
+
+		for (var l1 in lines)
+			for (var l2 in lines) {
+				if (lines[l1].feature.ol_uid < lines[l2].feature.ol_uid && // Not the same line & not twice
+					lines[l1].first[0] == lines[l2].first[0] && lines[l1].first[1] == lines[l2].first[1]) { // The ends matches
+					// Remove the 2 lines
+					source.removeFeature(lines[l1].feature);
+					source.removeFeature(lines[l2].feature);
+
+					// And add the merged one by gluing the 2 ends
+					source.addFeature(new ol.Feature({
+						geometry: new ol.geom.LineString(lines[l1].suite.reverse().concat([lines[l1].first]).concat(lines[l2].suite))
+					}));
+
+					return stickLines(); // Restart at the beginning
+				}
+			}
+
 	}
 
 	return bouton;
