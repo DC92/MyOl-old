@@ -5,19 +5,9 @@
 // Code & all tiled layers use EPSG:3857 spherical mercator projection
 // Each adaptation is included in a single JS function that you can include separately (check dependencies if any)
 //******************************************************************************
-
-//TODO BUG http://dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62&bbox=3.8125991821289062,45.488859788464765,3.9499282836914067,45.585051795433884. Raison : l’en-tête CORS « Access-Control-Allow-Origin » est manquant.
-
-//TODO BEST Voir traffic réseau (autre couche = ord survey ??)
-//TODO BEST mem cookie couches overlay
-//TODO BEST Superzoom
 //TODO BEST Harmoniser yyyElement ...
 //TODO BEST Site off line, application
-//TODO BEST Pas d'upload/download sur mobile (-> va vers photos !)
-
 //TODO TEST check , à la fin des tablos
-//TODO TEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
-
 /**
  * HACK Call onAdd(map) on layers added to a map
  */
@@ -31,6 +21,7 @@ ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
 //***************************************************************
 // TILE LAYERS
 //***************************************************************
+//TODO BEST Superzoom
 /**
  * Openstreetmap
  */
@@ -240,6 +231,7 @@ function layerBing(layer, key) {
 /**
  * Ordnance Survey : Great Britain
  */
+//TODO TEST Voir traffic réseau (autre couche = ord survey ??)
 //TODO BEST attribution : Ordnance Survey
 function layerOS(key) {
 	return layerTileIncomplete([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
@@ -683,7 +675,7 @@ function overlaysCollection() {
 		//TODO TODO OverPass: layerOverpass(),
 		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-//TODO		Massifs: layerMassifsWri()
+		//TODO		Massifs: layerMassifsWri()
 	};
 }
 
@@ -818,6 +810,8 @@ function controlButton(label, options) {
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
  * Must be called after controlPermalink
  */
+//TODO BEST mem cookie couches overlay
+//TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
 function controlLayers(baseLayers, overLayers) {
 	var control = controlButton('&hellip;', {
 		title: 'Liste des cartes',
@@ -975,8 +969,8 @@ function controlPermalink(options) {
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 							inputs[i].value == decodeURI(params[3]);
-//TODO TEST surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
-//TODO TEST surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
+					//TODO TEST surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+					//TODO TEST surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
 
@@ -1109,7 +1103,8 @@ ol.control.LengthLine.prototype.setMap = function(map) {
 /**
  * HACK to prevent wrong full screen size with Chrome on Windows
  */
-var formerHandleFullScreenChange = ol.control.FullScreen.prototype.handleFullScreenChange_;//TODO optimiser
+ //TODO optimiser
+var formerHandleFullScreenChange = ol.control.FullScreen.prototype.handleFullScreenChange_;
 ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
 	formerHandleFullScreenChange.call(this);
 	var el = this.getMap().getTargetElement();
@@ -1130,6 +1125,7 @@ window.addEventListener('load', function() {
 /**
  * GPX file loader control
  */
+//TODO BEST Pas d'upload/download sur mobile (-> va vers photos !)
 function controlLoadGPX() {
 	var el = document.createElement('input'),
 		button = controlButton('&uArr;', {
@@ -1278,7 +1274,7 @@ function controlsCollection() {
 		controlGPS(),
 		controlLoadGPX(),
 		controlDownloadGPX(),
-//TODO TODO impression full format page -> CSS
+		//TODO TODO impression full format page -> CSS
 		controlButton('&equiv;', {
 			title: 'Imprimer la carte',
 			action: function() {
@@ -1433,7 +1429,6 @@ function controlLineEditor(id, snapLayers) {
 	});
 
 	// Join lines with identical ends
-	//TODO BUG ne marche pas pour de longues lignes
 	function stickLines() {
 		var features = source.getFeatures(),
 			lines = [];
@@ -1444,16 +1439,18 @@ function controlLineEditor(id, snapLayers) {
 				coordinates = []; // We will put them back in lonlat chart
 			for (var c = 0; c < geometry.flatCoordinates.length; c += geometry.stride)
 				coordinates.push(geometry.flatCoordinates.slice(c));
-
-			// In both senses
-			for (var i = 0; i < 2; i++) {
-				lines.push({
-					indexFeature: f,
-					premier: coordinates[0], // The first point
-					suite: coordinates.slice(1) // The other points
-				});
-				coordinates = coordinates.reverse(); // And we redo the other way
-			}
+			if (geometry.flatCoordinates.length <= geometry.stride) // If this is a one point line !!
+				source.removeFeature(features[f]); // Delete it
+			else
+				// In both senses
+				for (var i = 0; i < 2; i++) {
+					lines.push({
+						indexFeature: f,
+						premier: coordinates[0], // The first point
+						suite: coordinates.slice(1) // The other points
+					});
+					coordinates = coordinates.reverse(); // And we redo the other way
+				}
 		}
 
 		// We are looking for 2 lines with the same first end
