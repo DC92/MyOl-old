@@ -3,16 +3,6 @@
  * (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
  */
 
-/* Full screen */
-.html, .body {
-	min-height: 100%;
-}
-.ol-full-screen {
-	top: 4em;
-	left: .5em;
-	right: auto;
-}
-
 /* Geocoder */
 .ol-coordinate {
 	bottom: 30px;
@@ -42,7 +32,18 @@
 	height: 1.375em;
 }
 
-/* PRINT */
+/* Full screen */
+.ol-full-screen {
+	top: 4em;
+	left: .5em;
+	right: auto;
+}
+/*
+.whtml, .body {
+	min-height: 100%;
+}*/
+
+/* Print 
 @media print {
 	
 	html, body{
@@ -60,9 +61,9 @@
 	  wheight: 100% !important;
 	  width: 100% !important;
   }
-}
+}*/
 
-/* OVERPASS */
+/* Overpass */
 .overpass-popup{
 	background-color: #def;
 	padding: 5px;

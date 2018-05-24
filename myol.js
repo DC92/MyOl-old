@@ -15,7 +15,7 @@
  * HACK Call fire 'onAdd' on layers added to a map
  */
 ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
-	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method
+	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method (as ol.Map hasn't addLayer)
 
 	layer.dispatchEvent(new ol.MapEvent('onAdd', this));
 };
@@ -1064,62 +1064,66 @@ function controlGPS() {
 /**
  * Control that displays the length of a line overflown
  */
-ol.control.LengthLine = function(opt_options) { //TODO BEST ne pas mettre en forme d'héritage de classe
-	var options = opt_options ? opt_options : {};
-	options.className = 'ol-length-line';
-	ol.control.MousePosition.call(this, options); //HACK reuse of an existing control
-};
-ol.inherits(ol.control.LengthLine, ol.control.MousePosition);
-ol.control.LengthLine.prototype.updateHTML_ = function() {}; //HACK Inhibits the MousePosition display
-
-ol.control.LengthLine.prototype.setMap = function(map) {
-	ol.control.MousePosition.prototype.setMap.call(this, map); //HACK
-
-	var element = this.element,
-		interaction = new ol.interaction.Select({
-			condition: ol.events.condition.pointerMove,
-			hitTolerance: 5,
-			filter: calculateLength // HACK : use of filter to perform an action
-		});
-
-	function calculateLength(f) {
-		var length = ol.Sphere.getLength(f.getGeometry());
-		if (length >= 100000)
-			element.innerHTML = (Math.round(length / 1000)) + ' km';
-		else if (length >= 10000)
-			element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-		else if (length >= 1000)
-			element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-		else if (length >= 1)
-			element.innerHTML = (Math.round(length)) + ' m';
-		return length > 0; // Continue hover if we are above a line
-	}
-
-	map.on(['changed'], function() { // Momentary hide hover if anything has changed
-		map.removeInteraction(interaction);
-		element.innerHTML = null;
+function controlLengthLine() {
+	var control = new ol.control.MousePosition({
+		className: 'ol-length-line'
 	});
-	map.on(['pointermove'], function(event) {
-		var features = map.getFeaturesAtPixel(event.pixel, {
-			hitTolerance: 5
-		});
 
-		var actif = interaction.getMap(); //TODO BEST simplification ?
-		if (features) {
-			if (!actif)
-				map.addInteraction(interaction);
-		} else {
-			element.innerHTML = null;
-			if (actif)
-				map.removeInteraction(interaction);
+	control.updateHTML_ = function() {}; //HACK Inhibits the MousePosition display
+
+	control.setMap = function(map) { // Replace former mthod
+		ol.control.MousePosition.prototype.setMap.call(control, map);
+
+		var element = this.element,
+			interaction = new ol.interaction.Select({
+				condition: ol.events.condition.pointerMove,
+				hitTolerance: 5,
+				filter: calculateLength // HACK : use of filter to perform an action
+			});
+
+		function calculateLength(f) {
+			var length = ol.Sphere.getLength(f.getGeometry());
+			if (length >= 100000)
+				element.innerHTML = (Math.round(length / 1000)) + ' km';
+			else if (length >= 10000)
+				element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+			else if (length >= 1000)
+				element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+			else if (length >= 1)
+				element.innerHTML = (Math.round(length)) + ' m';
+			return length > 0; // Continue hover if we are above a line
 		}
-	});
-};
+
+		map.on(['changed'], function() { // Momentary hide hover if anything has changed
+			map.removeInteraction(interaction);
+			element.innerHTML = null;
+		});
+
+		map.on(['pointermove'], function(event) {
+			var features = map.getFeaturesAtPixel(event.pixel, {
+				hitTolerance: 5
+			});
+
+			var actif = interaction.getMap(); //TODO BEST simplification ?
+			if (features) {
+				if (!actif)
+					map.addInteraction(interaction);
+			} else {
+				element.innerHTML = null;
+				if (actif)
+					map.removeInteraction(interaction);
+			}
+		});
+	};
+
+	return control;
+}
 
 /**
  * HACK to prevent wrong full screen size with Chrome on Windows
- */
+ 
 //TODO optimiser
+//TODO BUG étale...
 var formerHandleFullScreenChange = ol.control.FullScreen.prototype.handleFullScreenChange_;
 ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
 	formerHandleFullScreenChange.call(this);
@@ -1127,7 +1131,7 @@ ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
 	el.style.height =
 		el.style.width =
 		ol.control.FullScreen.isFullScreen() ? '100%' : null;
-};
+};*/
 
 /**
  * HACK to display a title on the geocoder
@@ -1275,7 +1279,7 @@ function controlsCollection() {
 			labelActive: '\u21ce',
 			tipLabel: 'Plein écran'
 		}),
-		new ol.control.LengthLine(),
+		controlLengthLine(),
 		controlPermalink({
 			init: true,
 			invisible: false
