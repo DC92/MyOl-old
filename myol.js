@@ -1120,20 +1120,6 @@ function controlLengthLine() {
 }
 
 /**
- * HACK to prevent wrong full screen size with Chrome on Windows
- 
-//TODO optimiser
-//TODO BUG étale...
-var formerHandleFullScreenChange = ol.control.FullScreen.prototype.handleFullScreenChange_;
-ol.control.FullScreen.prototype.handleFullScreenChange_ = function() {
-	formerHandleFullScreenChange.call(this);
-	var el = this.getMap().getTargetElement();
-	el.style.height =
-		el.style.width =
-		ol.control.FullScreen.isFullScreen() ? '100%' : null;
-};*/
-
-/**
  * HACK to display a title on the geocoder
  */
 window.addEventListener('load', function() {

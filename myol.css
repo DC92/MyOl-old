@@ -38,10 +38,10 @@
 	left: .5em;
 	right: auto;
 }
-/*
-.whtml, .body {
-	min-height: 100%;
-}*/
+:-webkit-full-screen { /* HACK bug in Chrome & Edge */
+	width: 100vw !important;
+	height: 100vw !important;
+}
 
 /* Print 
 @media print {
