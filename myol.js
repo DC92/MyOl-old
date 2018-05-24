@@ -12,14 +12,13 @@
 //TODO END http://jsbeautifier.org/
 //TODO END check , à la fin des tablos : http://jshint.com/
 /**
- * HACK Call onAdd(map) on layers added to a map
+ * HACK Call fire 'onAdd' on layers added to a map
  */
 ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
 	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method
-	if (typeof layer.onAdd == 'function')
-		layer.onAdd(this); // Call ol.layer function
+
+	layer.dispatchEvent(new ol.MapEvent('onAdd', this));
 };
-//TODO BEST utiliser plutôt fire
 
 //***************************************************************
 // TILE LAYERS
@@ -128,12 +127,12 @@ function layerTileIncomplete(extent, sources) {
 		backgroundSource = new ol.source.Stamen({
 			layer: 'terrain'
 		});
-	layer.onAdd = function(m) {
-		map = m;
+    layer.on('onAdd', function(e) {
+		map = e.map
 		view = map.getView();
 		view.on('change', change);
 		change(); // At init
-	};
+	});
 
 	// Zoom has changed
 	function change() {
@@ -324,11 +323,11 @@ function layerGeoJson(options) {
 		});
 
 	layer.options_ = options; // Mem options for intercations
-	layer.onAdd = function(map_) {
+	layer.on('onAdd', function(e) {
 
 		// Hover activity (coloring the feature)
 		if (typeof options.hover == 'function')
-			map_.addInteraction(new ol.interaction.Select({
+			e.map.addInteraction(new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.pointerMove,
 				style: function(feature) {
@@ -336,56 +335,56 @@ function layerGeoJson(options) {
 				}
 			}));
 
-		if (!map_.elPop) { // Only once for all layers
+		if (!e.map.elPop) { // Only once for all layers
 			// Create the label's popup
-			map_.elPop = document.createElement('div');
+			e.map.elPop = document.createElement('div');
 			var popup = new ol.Overlay({
-				element: map_.elPop
+				element: e.map.elPop
 			});
-			map_.addOverlay(popup);
+			e.map.addOverlay(popup);
 
 			// Display a label when hover the feature
-			map_.on('pointermove', function(event) {
-				map_.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
+			e.map.on('pointermove', function(event) {
+				e.map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
 				popup.setPosition(undefined); // Hide label by default if none feature here
 
 				// Search the hovered the feature(s)
-				map_.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
+				e.map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
 			});
 
 			function checkFeatureAtPixelHovered(feature_, layer_) {
 				if (!popup.getPosition() && // Only for the top one
 					layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
 					var properties_ = layer_.options_.label(feature_.getProperties());
-					map_.elPop.innerHTML = properties_.text; // Set the label inner
-					map_.elPop.className = 'popup ' + (properties_.className || '');
+					e.map.elPop.innerHTML = properties_.text; // Set the label inner
+					e.map.elPop.className = 'popup ' + (properties_.className || '');
 					// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
 
 					// Now, what anchor for the label () ?
 					var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
 					if (coordinates_.length != 2)
 						coordinates_ = event.coordinate; // If it's a surface, over the pointer
-					popup.setPosition(map_.getView().getCenter()); // For popup size calculation
+					popup.setPosition(e.map.getView().getCenter()); // For popup size calculation
 
 					// Well calculated shift of the label regarding the pointer position
-					var pixel = map_.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
-					if (pixel[1] < map_.elPop.clientHeight + 12) { // On the top of the map (not enough space for it)
-						pixel[0] += pixel[0] < map_.getSize()[0] / 2 ? 10 : -map_.elPop.clientWidth - 10;
+					var pixel = e.map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
+					if (pixel[1] < e.map.elPop.clientHeight + 12) { // On the top of the map (not enough space for it)
+						pixel[0] += pixel[0] < e.map.getSize()[0] / 2 ? 10 : -e.map.elPop.clientWidth - 10;
 						pixel[1] += 2 - pixel[1];
 					} else {
-						pixel[0] -= map_.elPop.clientWidth * pixel[0] / map_.getSize()[0];
-						pixel[1] -= map_.elPop.clientHeight + 10;
+						pixel[0] -= e.map.elPop.clientWidth * pixel[0] / e.map.getSize()[0];
+						pixel[1] -= e.map.elPop.clientHeight + 10;
 					}
-					popup.setPosition(map_.getCoordinateFromPixel(pixel));
+					popup.setPosition(e.map.getCoordinateFromPixel(pixel));
 				}
 				if (layer_ && layer_.options_ && layer_.options_.click)
-					map_.getViewport().style.cursor = 'pointer';
+					e.map.getViewport().style.cursor = 'pointer';
 			}
 
 			// Click on feature
-			map_.on('click', function(event) {
+			e.map.on('click', function(event) {
 				// Search the clicked the feature(s)
-				map_.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
+				e.map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
 					hitTolerance: 5
 				});
 			});
@@ -395,7 +394,7 @@ function layerGeoJson(options) {
 					layer_.options_.click(feature_.getProperties());
 			}
 		}
-	};
+	});
 
 	return layer;
 }
@@ -639,6 +638,7 @@ function layerOverpass(request) {
 			}
 		}),
 
+//TODO REDO    layer.on('onAdd', function(e) {
 		onAdd: function(map) {
 			popup.getElement().className = 'overpass-popup';
 			map.addOverlay(popup);
@@ -717,10 +717,10 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 			style: iconStyle,
 			zIndex: 1
 		});
-	layer.onAdd = function(map) {
+    layer.on('onAdd', function(e) {
 		if (edit) {
 			// Drag and drop
-			map.addInteraction(new ol.interaction.Modify({
+			e.map.addInteraction(new ol.interaction.Modify({
 				features: new ol.Collection([iconFeature]),
 				style: iconStyle,
 				pixelTolerance: 20
@@ -729,7 +729,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 				displayLL(this.getCoordinates());
 			});
 		}
-	};
+	});
 
 	// Show a coordinate
 	function displayLL(ll) {
