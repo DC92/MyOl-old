@@ -610,9 +610,9 @@ function layerOverpass(request) {
 		);
 
 		var features = new ol.format.OSMXML().readFeatures(xml, {
-			featureProjection: map.getView().getProjection() //TODO BUG MISSING map !!
+			featureProjection: map.getView().getProjection() //TODO REDO MISSING map !!
 		});
-		source.addFeatures(features); //TODO BUG MISSING source
+		source.addFeatures(features); //TODO REDO MISSING source
 	}
 	return new ol.layer.Vector({
 		source: new ol.source.Vector({
@@ -824,6 +824,7 @@ function controlButton(label, options) {
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
  * Must be called after controlPermalink
  */
+//TODO BUG plus de mem de la baselayer
 //TODO BEST mem cookie couches overlay
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
 function controlLayers(baseLayers, overLayers) {
@@ -885,17 +886,17 @@ function controlLayers(baseLayers, overLayers) {
 			}
 
 			// Hover the button open the selector
-			control.element.firstElementChild.onmouseover = function() { //TODO sortir function
+			control.element.firstElementChild.onmouseover = function() {
 				displayLayerSelector(true);
 			};
 
 			// Click or change map size close the selector
-			map.on(['click', 'change:size'], function() { //TODO sortir function
+			map.on(['click', 'change:size'], function() {
 				displayLayerSelector(false);
 			});
 
 			// Leaving the map close the selector
-			window.addEventListener('mousemove', function(event) { //TODO sortir function
+			window.addEventListener('mousemove', function(event) {
 				var divRect = map.getTargetElement().getBoundingClientRect();
 				if (event.clientX < divRect.left || event.clientX > divRect.right ||
 					event.clientY < divRect.top || event.clientY > divRect.bottom)
@@ -983,8 +984,6 @@ function controlPermalink(options) {
 						if (inputs[i].name == 'base')
 							inputs[i].checked =
 							inputs[i].value == decodeURI(params[3]);
-					//TODO TEST surveiller pourquoi ???					event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
-					//TODO TEST surveiller pourquoi ???					view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
 				}
 			}
 
@@ -1104,13 +1103,12 @@ function controlLengthLine() {
 				hitTolerance: 5
 			});
 
-			var actif = interaction.getMap(); //TODO BEST simplification ?
 			if (features) {
-				if (!actif)
+				if (!interaction.getMap())
 					map.addInteraction(interaction);
 			} else {
 				element.innerHTML = null;
-				if (actif)
+				if (interaction.getMap())
 					map.removeInteraction(interaction);
 			}
 		});
