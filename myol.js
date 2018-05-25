@@ -127,7 +127,7 @@ function layerTileIncomplete(extent, sources) {
 		backgroundSource = new ol.source.Stamen({
 			layer: 'terrain'
 		});
-    layer.on('onAdd', function(e) {
+	layer.on('onAdd', function(e) {
 		map = e.map
 		view = map.getView();
 		view.on('change', change);
@@ -296,7 +296,7 @@ function layersCollection(keys) {
 //***************************************************************
 // VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
-//TODO TODO sélecteur de type de pictos
+//TODO sélecteur de type de pictos
 /**
  * GeoJson POI layer
  */
@@ -330,6 +330,7 @@ function layerGeoJson(options) {
 			e.map.addInteraction(new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.pointerMove,
+				hitTolerance: 6,
 				style: function(feature) {
 					return new ol.style.Style(options.hover(feature.getProperties()));
 				}
@@ -385,7 +386,7 @@ function layerGeoJson(options) {
 			e.map.on('click', function(event) {
 				// Search the clicked the feature(s)
 				e.map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
-					hitTolerance: 5
+					hitTolerance: 6
 				});
 			});
 
@@ -599,7 +600,7 @@ function layerOverpass(request) {
 	}
 	var client = new XMLHttpRequest();
 
-	function ajaxLoaded() { //TODO REDO voir si on met inline ou pas ???
+	function ajaxLoaded() { //REDO voir si on met inline ou pas ???
 		// Optionaly replace way (surface) by node (centered point)
 		var xml = client.responseText.replace(
 			/<way id="([0-9]+)">\s*<center lat="([0-9\.]+)" lon="([0-9\.]+)"\/>(.*)/g,
@@ -610,9 +611,9 @@ function layerOverpass(request) {
 		);
 
 		var features = new ol.format.OSMXML().readFeatures(xml, {
-			featureProjection: map.getView().getProjection() //TODO REDO MISSING map !!
+			featureProjection: map.getView().getProjection() //REDO MISSING map !!
 		});
-		source.addFeatures(features); //TODO REDO MISSING source
+		source.addFeatures(features); //REDO MISSING source
 	}
 	return new ol.layer.Vector({
 		source: new ol.source.Vector({
@@ -638,7 +639,7 @@ function layerOverpass(request) {
 			}
 		}),
 
-//TODO REDO    layer.on('onAdd', function(e) {
+//REDO	layer.on('onAdd', function(e) {
 		onAdd: function(map) {
 			popup.getElement().className = 'overpass-popup';
 			map.addOverlay(popup);
@@ -686,10 +687,10 @@ function layerOverpass(request) {
  */
 function overlaysCollection() {
 	return {
-		//TODO TODO OverPass: layerOverpass(),
+		//TODO OverPass: layerOverpass(),
 		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-		//TODO TODO Massifs: layerMassifsWri()
+		//TODO Massifs: layerMassifsWri()
 	};
 }
 
@@ -717,13 +718,12 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 			style: iconStyle,
 			zIndex: 1
 		});
-    layer.on('onAdd', function(e) {
+	layer.on('onAdd', function(e) {
 		if (edit) {
 			// Drag and drop
 			e.map.addInteraction(new ol.interaction.Modify({
 				features: new ol.Collection([iconFeature]),
-				style: iconStyle,
-				pixelTolerance: 20
+				style: iconStyle
 			}));
 			point.on('change', function() {
 				displayLL(this.getCoordinates());
@@ -1076,7 +1076,7 @@ function controlLengthLine() {
 		var element = this.element,
 			interaction = new ol.interaction.Select({
 				condition: ol.events.condition.pointerMove,
-				hitTolerance: 5,
+				hitTolerance: 6,
 				filter: calculateLength // HACK : use of filter to perform an action
 			});
 
@@ -1100,7 +1100,7 @@ function controlLengthLine() {
 
 		map.on(['pointermove'], function(event) {
 			var features = map.getFeaturesAtPixel(event.pixel, {
-				hitTolerance: 5
+				hitTolerance: 6
 			});
 
 			if (features) {
@@ -1151,17 +1151,10 @@ function controlLoadGPX() {
 			features = format.readFeatures(reader.result, {
 				dataProjection: 'EPSG:4326',
 				featureProjection: 'EPSG:3857'
-			}),
-			// Find an active editor. Need to upload the feature here.
-			sourceEditor,
-			ls = map.getLayers().getArray();
-		for (var l in ls)
-			if (ls[l].getProperties().title == 'editor')
-				sourceEditor = ls[l].getSource();
+			});
 
-		if (sourceEditor) {
-			// Add the track to the editor
-			sourceEditor.addFeatures(features);
+		if (map.sourceEditor) { // If there is an active editor
+			sourceEditor.addFeatures(features); // Add the track to the editor
 
 			// Zomm the map on the added features
 			var extent = ol.extent.createOrUpdateEmpty();
@@ -1187,57 +1180,64 @@ function controlLoadGPX() {
 /**
  * GPX file downloader control
  */
-//TODO BUG incompatible avec l'éditeur (pas de sélect)
 function controlDownloadGPX() {
-	var el = document.createElement('a'),
+	var map,
+		selectedFeatures = [],
+		el = document.createElement('a'),
 		button = controlButton('&dArr;', {
 			title: 'Obtenir un fichier GPX',
-			action: download
+			action: function() {
+				if (map.sourceEditor) // If there is an active editor
+					download(map.sourceEditor.getFeatures());
+				else if (selectedFeatures.length) // If there are selected features
+					download(selectedFeatures);
+				else
+					alert('Sélectionnez une ou plusieurs traces à sauvegarder avec "Shift+Clic"');
+			}
 		}),
-		selected = [],
-		select = new ol.interaction.Select();
+		select = new ol.interaction.Select({
+			condition: ol.events.condition.click,
+			hitTolerance: 6
+		});
 	select.on('select', function(e) {
-		selected = e.target.getFeatures().getArray();
+		selectedFeatures = e.target.getFeatures().getArray();
 	});
 
-	// For Moz
+	//HACK for Moz
 	el.target = '_blank';
 	el.style = 'display:none;opacity:0;color:transparent;';
 	(document.body || document.documentElement).appendChild(el);
 
-	button.setMap = function(map) {
-		ol.control.Control.prototype.setMap.call(this, map);
+	button.setMap = function(m) { //HACk overload the ol.control.Control.setMap function
+		ol.control.Control.prototype.setMap.call(this, m);
+		map = m;
 		map.addInteraction(select);
 	};
 
-	function download() {
-		if (!selected.length)
-			alert('Shift+Clic pour sélectionner les traces à sauvegarder');
-		else {
+	function download(layers) {
+		var fileName = 'trace.gpx',
+			gpx = new ol.format.GPX().writeFeatures(layers).replace(/>/g, ">\n"),
+			file = new Blob([gpx], {
+				type: 'application/gpx+xml'
+			});
 
-			var fileName = 'trace.gpx',
-				file = new Blob([new ol.format.GPX().writeFeatures(selected)], {
-					type: 'application/gpx+xml'
-				});
+		//HACK for IE/Edge
+		if (typeof navigator.msSaveOrOpenBlob !== 'undefined')
+			return navigator.msSaveOrOpenBlob(file, fileName);
+		else if (typeof navigator.msSaveBlob !== 'undefined')
+			return navigator.msSaveBlob(file, fileName);
 
-			// For IE/Edge
-			if (typeof navigator.msSaveOrOpenBlob !== 'undefined')
-				return navigator.msSaveOrOpenBlob(file, fileName);
-			else if (typeof navigator.msSaveBlob !== 'undefined')
-				return navigator.msSaveBlob(file, fileName);
+		el.href = URL.createObjectURL(file);
+		el.download = fileName;
 
-			el.href = URL.createObjectURL(file);
-			el.download = fileName;
-
-			if (typeof el.click === 'function')
-				el.click();
-			else
-				el.dispatchEvent(new MouseEvent('click', {
-					view: window,
-					bubbles: true,
-					cancelable: true
-				}));
-		}
+		if (typeof el.click === 'function')
+			el.click();
+		else
+			el.dispatchEvent(new MouseEvent('click', {
+				view: window,
+				bubbles: true,
+				cancelable: true
+			}));
 	}
 
 	return button;
@@ -1278,7 +1278,7 @@ function controlsCollection() {
 		controlGPS(),
 		controlLoadGPX(),
 		controlDownloadGPX(),
-		//TODO TODO impression full format page -> CSS
+		//TODO impression full format page -> CSS
 		controlButton('&equiv;', {
 			title: 'Imprimer la carte',
 			action: function() {
@@ -1306,14 +1306,12 @@ function controlLineEditor(id, snapLayers) {
 			wrapX: false
 		}),
 		layer = new ol.layer.Vector({
-			title: 'editor',
 			source: source,
 			zIndex: 1
 		}),
 		interactions = {
 			snap: new ol.interaction.Snap({
-				source: source,
-				pixelTolerance: 5
+				source: source
 			}),
 			modify: new ol.interaction.Modify({
 				source: source,
@@ -1335,7 +1333,7 @@ function controlLineEditor(id, snapLayers) {
 				"Click sur un segment puis déplacer pour créer un sommet\n" +
 				"Alt+click sur un sommet pour le supprimer\n" +
 				"Alt+click sur un segment pour le supprimer et couper la ligne\n" +
-				"Shift+Alt+click sur une ligne pour la supprimer",
+				"Ctrl+Alt+click sur une ligne pour la supprimer",
 			action: function() {
 				setMode(editMode ^= 1); // Alternately switch modes
 			}
@@ -1344,6 +1342,7 @@ function controlLineEditor(id, snapLayers) {
 	bouton.setMap = function(m) {
 		ol.control.Control.prototype.setMap.call(this, m); //HACK
 		map = m;
+		map.sourceEditor = source; //HACK to make other control act differently when there is an editor
 		map.addLayer(layer);
 		//HACK Avoid zooming when you leave the mode by doubleclick
 		map.getInteractions().getArray().forEach(function(i) {
@@ -1394,7 +1393,7 @@ function controlLineEditor(id, snapLayers) {
 	interactions.modify.on('modifyend', function(event) {
 		// We retrieve the list of targeted features
 		var features = event.mapBrowserEvent.map.getFeaturesAtPixel(event.mapBrowserEvent.pixel, {
-				hitTolerance: 5
+				hitTolerance: 6
 			}),
 			pointer = null,
 			line = null;
