@@ -1,18 +1,14 @@
 /*!
  * OPENLAYERS V4 ADAPTATION - https://openlayers.org/
- * (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
- *
- * Code & all tiled layers use EPSG:3857 spherical mercator projection
- * Each adaptation is included in a single JS function
- * that you can include separately (check dependencies if any)
- * Feel free to use, modify & share as you want
+ * (C) Dominique Cavailhez 2017
+ * Check https://github.com/Dominique92/MyOl
  */
-//TODO BEST Harmoniser yyyElement ...
 //TODO BEST Site off line, application
 //TODO END http://jsbeautifier.org/
 //TODO END check , à la fin des tablos : http://jshint.com/
+
 /**
- * HACK Call fire 'onAdd' on layers added to a map
+ * HACK send 'onAdd' event to layers when added to a map
  */
 ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
 	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method (as ol.Map hasn't addLayer)
@@ -41,6 +37,7 @@ function layerOSM(url, attribution) {
 
 /**
  * Kompas (austria)
+ * Requires layerOSM
  */
 function layerKompass(layer) {
 	return layerOSM(
@@ -52,6 +49,7 @@ function layerKompass(layer) {
 
 /**
  * Thunderforest
+ * Requires layerOSM
  */
 function layerThunderforest(layer, key) {
 	return layerOSM(
@@ -120,6 +118,7 @@ function layerIGN(key, layer, format) {
  * Virtual class
  * Displays OSM outside the zoom area, 
  * Displays blank outside the area of validity
+ * Requires 'onAdd' layer event
  */
 function layerTileIncomplete(extent, sources) {
 	var layer = new ol.layer.Tile(),
@@ -156,6 +155,7 @@ function layerTileIncomplete(extent, sources) {
 /**
  * Swisstopo https://api.geo.admin.ch/
  * Register your domain: https://shop.swisstopo.admin.ch/fr/products/geoservice/swisstopo_geoservices/WMTS_info
+ * Requires layerTileIncomplete
  */
 function layerSwissTopo(layer) {
 	var projectionExtent = ol.proj.get('EPSG:3857').getExtent(),
@@ -184,6 +184,7 @@ function layerSwissTopo(layer) {
 
 /**
  * Italy IGM
+ * Requires layerTileIncomplete
  */
 function layerIGM() {
 	function igmSource(url, layer) {
@@ -232,8 +233,9 @@ function layerBing(layer, key) {
 
 /**
  * Ordnance Survey : Great Britain
+ * Requires layerTileIncomplete
  */
-//TODO TEST Voir traffic réseau (autre couche = ord survey ??)
+//TODO TEST Voir traffic réseau (autre couche = ord survey ??) => init permalink ???
 //TODO BEST attribution : Ordnance Survey
 function layerOS(key) {
 	return layerTileIncomplete([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
@@ -246,6 +248,7 @@ function layerOS(key) {
 
 /**
  * Tile layers examples
+ * Requires many
  */
 function layersCollection(keys) {
 	return {
@@ -299,6 +302,7 @@ function layersCollection(keys) {
 //TODO sélecteur de type de pictos
 /**
  * GeoJson POI layer
+ * Requires 'onAdd' layer event
  */
 function layerGeoJson(options) {
 	var actual_resolution,
@@ -336,11 +340,11 @@ function layerGeoJson(options) {
 				}
 			}));
 
-		if (!e.map.elPop) { // Only once for all layers
+		if (!e.map.popElement) { // Only once for all layers
 			// Create the label's popup
-			e.map.elPop = document.createElement('div');
+			e.map.popElement = document.createElement('div');
 			var popup = new ol.Overlay({
-				element: e.map.elPop
+				element: e.map.popElement
 			});
 			e.map.addOverlay(popup);
 
@@ -357,8 +361,8 @@ function layerGeoJson(options) {
 				if (!popup.getPosition() && // Only for the top one
 					layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
 					var properties_ = layer_.options_.label(feature_.getProperties());
-					e.map.elPop.innerHTML = properties_.text; // Set the label inner
-					e.map.elPop.className = 'popup ' + (properties_.className || '');
+					e.map.popElement.innerHTML = properties_.text; // Set the label inner
+					e.map.popElement.className = 'popup ' + (properties_.className || '');
 					// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
 
 					// Now, what anchor for the label () ?
@@ -369,12 +373,12 @@ function layerGeoJson(options) {
 
 					// Well calculated shift of the label regarding the pointer position
 					var pixel = e.map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
-					if (pixel[1] < e.map.elPop.clientHeight + 12) { // On the top of the map (not enough space for it)
-						pixel[0] += pixel[0] < e.map.getSize()[0] / 2 ? 10 : -e.map.elPop.clientWidth - 10;
+					if (pixel[1] < e.map.popElement.clientHeight + 12) { // On the top of the map (not enough space for it)
+						pixel[0] += pixel[0] < e.map.getSize()[0] / 2 ? 10 : -e.map.popElement.clientWidth - 10;
 						pixel[1] += 2 - pixel[1];
 					} else {
-						pixel[0] -= e.map.elPop.clientWidth * pixel[0] / e.map.getSize()[0];
-						pixel[1] -= e.map.elPop.clientHeight + 10;
+						pixel[0] -= e.map.popElement.clientWidth * pixel[0] / e.map.getSize()[0];
+						pixel[1] -= e.map.popElement.clientHeight + 10;
 					}
 					popup.setPosition(e.map.getCoordinateFromPixel(pixel));
 				}
@@ -402,6 +406,7 @@ function layerGeoJson(options) {
 
 /**
  * www.refuges.info areas layer
+ * Requires layerGeoJson
  */
 function layerMassifsWri() {
 	return layerGeoJson({
@@ -442,6 +447,7 @@ function layerMassifsWri() {
 
 /**
  * www.refuges.info POI layer
+ * Requires layerGeoJson
  */
 function layerPointsWri() {
 	return layerGeoJson({
@@ -468,6 +474,7 @@ function layerPointsWri() {
 
 /**
  * chemineur.fr POI layer
+ * Requires layerGeoJson
  */
 function chemineurLayer() {
 	return layerGeoJson({
@@ -496,6 +503,8 @@ function chemineurLayer() {
  * OSM overpass poi layer
  * From: https://openlayers.org/en/latest/examples/vector-osm.html
  * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
+ * Requires layerGeoJson
+ * Requires 'onAdd' layer event
  */
 //TODO REDO
 function layerOverpass(request) {
@@ -684,6 +693,7 @@ function layerOverpass(request) {
 
 /**
  * Vector layers examples
+ * Requires many
  */
 function overlaysCollection() {
 	return {
@@ -697,6 +707,7 @@ function overlaysCollection() {
 /**
  * Marqueurs
  * Requires proj4.js for swiss coordinates
+ * Requires 'onAdd' layer event
  */
 function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, lat], 'id-display', ['format de base', 'format suisse']
 	var point = new ol.geom.Point(
@@ -752,9 +763,9 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 			html = html.replace('{' + r + '}', p[r]);
 
 		// We insert the resulting HTML string where it is going
-		var llid = document.getElementById(IdDisplay);
-		if (llid)
-			llid.innerHTML = html;
+		var displayElement = document.getElementById(IdDisplay);
+		if (displayElement)
+			displayElement.innerHTML = html;
 	}
 
 	// Display coords
@@ -792,28 +803,28 @@ var nextButtonTopPos = 6; // Top position of next button (em)
 //TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
 
 function controlButton(label, options) {
-	var button = document.createElement('button');
-	button.innerHTML = label;
+	var buttonElement = document.createElement('button');
+	buttonElement.innerHTML = label;
 	if (options.action)
-		button.addEventListener('click', options.action, false);
+		buttonElement.addEventListener('click', options.action, false);
 	if (options.color)
-		button.style.backgroundColor = options.color; // Color button
-	var element = document.createElement('div');
-	element.className = 'ol-button ol-unselectable ol-control ' + (options.className || '');
+		buttonElement.style.backgroundColor = options.color; // Color button
+	var divElement = document.createElement('div');
+	divElement.className = 'ol-button ol-unselectable ol-control ' + (options.className || '');
 	if (options.invisible)
-		element.style.display = 'none';
+		divElement.style.display = 'none';
 	else if (options.rightPosition) {
-		element.style.right = '.5em';
-		element.style.top = options.rightPosition + 'em';
+		divElement.style.right = '.5em';
+		divElement.style.top = options.rightPosition + 'em';
 	} else {
-		element.style.left = '.5em';
-		element.style.top = (nextButtonTopPos += 2) + 'em';
+		divElement.style.left = '.5em';
+		divElement.style.top = (nextButtonTopPos += 2) + 'em';
 	}
-	element.title = options.title;
-	element.appendChild(button);
+	divElement.title = options.title;
+	divElement.appendChild(buttonElement);
 
 	return new ol.control.Control({
-		element: element,
+		element: divElement,
 		render: options.render
 	});
 }
@@ -822,7 +833,8 @@ function controlButton(label, options) {
  * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
- * Must be called after controlPermalink
+ * Must be called after controlPermalink //TODO REDO !!!
+ * Requires controlButton
  */
 //TODO BUG plus de mem de la baselayer
 //TODO BEST mem cookie couches overlay
@@ -952,9 +964,11 @@ function controlLayers(baseLayers, overLayers) {
  * Permalink control
  * options.invisible {true | false | undefined} add a controlPermalink button to the map.
  * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
- * url hash or "controlPermalink" cookie {<ZOOM>/<LON>/<LAT>/<LAYER>}
+ * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
  * Must be called before controlLayers
+ * Requires controlButton
  */
+//TODO : only add a link over the attribution
 function controlPermalink(options) {
 	options = options || {};
 	var params;
@@ -965,25 +979,27 @@ function controlPermalink(options) {
 		render: function(event) {
 			var view = event.map.getView();
 
-			// Set the map at controlPermalink position
+			// Set the map at the init
 			if (options.init !== false && // If use hash & cookies
 				typeof params == 'undefined') { // Only once
-				params = location.hash.substr(1).split('/'), // Get url controlPermalink
-					cookie = document.cookie.match(/controlPermalink=([^;]+)/); // Get cookie controlPermalink
-
-				if (params.length < 4 && // Less than 4 params
-					cookie) // There is a controlPermalink cookie
-					params = cookie[1].split('/');
-
-				if (params.length >= 4) { // Got zoom/lon/lat/layer
-					view.setZoom(params[0]);
-					view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
-					// Also select layer
-					var inputs = document.getElementsByTagName('input');
-					for (var i in inputs) //TODO TEST surveiller : ne marche pas tout le temps !!! => for i=0;... ???
-						if (inputs[i].name == 'base')
-							inputs[i].checked =
-							inputs[i].value == decodeURI(params[3]);
+				var perm = location.hash.match(/map=([^#,&;]+)/) || document.cookie.match(/map=([^;]+)/);
+				if (perm) {
+					params = perm[1].split('/'); // Get url controlPermalink
+					if (params.length >= 3) { // Got lon/lat/zoom
+						view.setZoom(params[0]);
+						view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
+					}
+					if (params.length >= 4) { // Got lon/lat/zoom/layer
+						//TODO BUG : ne voit pas encore les layers lors de l'init !!!
+						/*
+						var inputs = document.getElementsByTagName('input');
+						for (var i in inputs)
+							if (inputs[i].name == 'base')
+								inputs[i].checked = inputs[i].value == decodeURI(params[3]);
+						event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
+						view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
+						*/
+					}
 				}
 			}
 
@@ -1000,17 +1016,18 @@ function controlPermalink(options) {
 			});
 
 			// Mem position in a cookie
-			document.cookie = 'controlPermalink=' + params.join('/') + ';path=/';
+			document.cookie = 'map=' + params.join('/') + ';path=/';
 		},
 		// Set controlPermalink at map position
 		action: function() {
-			window.location.href = window.location.pathname + '#' + params.join('/');
+			window.location.href = window.location.pathname + '#map=' + params.join('/');
 		}
 	});
 }
 
 /**
  * GPS control
+ * Requires controlButton
  */
 function controlGPS() {
 	// The position marker
@@ -1070,10 +1087,10 @@ function controlLengthLine() {
 
 	control.updateHTML_ = function() {}; //HACK Inhibits the MousePosition display
 
-	control.setMap = function(map) { // Replace former mthod
+	control.setMap = function(map) { //HACK overload the ol.control.Control.setMap
 		ol.control.MousePosition.prototype.setMap.call(control, map);
 
-		var element = this.element,
+		var lengthElement = this.element,
 			interaction = new ol.interaction.Select({
 				condition: ol.events.condition.pointerMove,
 				hitTolerance: 6,
@@ -1083,19 +1100,19 @@ function controlLengthLine() {
 		function calculateLength(f) {
 			var length = ol.Sphere.getLength(f.getGeometry());
 			if (length >= 100000)
-				element.innerHTML = (Math.round(length / 1000)) + ' km';
+				lengthElement.innerHTML = (Math.round(length / 1000)) + ' km';
 			else if (length >= 10000)
-				element.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+				lengthElement.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
 			else if (length >= 1000)
-				element.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+				lengthElement.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
 			else if (length >= 1)
-				element.innerHTML = (Math.round(length)) + ' m';
+				lengthElement.innerHTML = (Math.round(length)) + ' m';
 			return length > 0; // Continue hover if we are above a line
 		}
 
 		map.on(['changed'], function() { // Momentary hide hover if anything has changed
 			map.removeInteraction(interaction);
-			element.innerHTML = null;
+			lengthElement.innerHTML = null;
 		});
 
 		map.on(['pointermove'], function(event) {
@@ -1107,7 +1124,7 @@ function controlLengthLine() {
 				if (!interaction.getMap())
 					map.addInteraction(interaction);
 			} else {
-				element.innerHTML = null;
+				lengthElement.innerHTML = null;
 				if (interaction.getMap())
 					map.removeInteraction(interaction);
 			}
@@ -1118,32 +1135,24 @@ function controlLengthLine() {
 }
 
 /**
- * HACK to display a title on the geocoder
- */
-window.addEventListener('load', function() {
-	var el = document.getElementById('gcd-button-control');
-	if (el)
-		el.title = 'Recherche par nom';
-}, true);
-
-/**
  * GPX file loader control
+ * Requires controlButton
  */
 //TODO BEST Pas d'upload/download sur mobile (-> va vers photos !)
 function controlLoadGPX() {
-	var el = document.createElement('input'),
+	var inputElement = document.createElement('input'),
 		button = controlButton('&uArr;', {
 			title: 'Visualiser un fichier GPX sur la carte',
 			action: function() {
-				el.click();
+				inputElement.click();
 			}
 		}),
 		format = new ol.format.GPX(),
 		reader = new FileReader();
 
-	el.type = 'file';
-	el.addEventListener('change', function() {
-		reader.readAsText(el.files[0]);
+	inputElement.type = 'file';
+	inputElement.addEventListener('change', function() {
+		reader.readAsText(inputElement.files[0]);
 	});
 
 	reader.onload = function() {
@@ -1154,12 +1163,12 @@ function controlLoadGPX() {
 			});
 
 		if (map.sourceEditor) { // If there is an active editor
-			sourceEditor.addFeatures(features); // Add the track to the editor
+			map.sourceEditor.addFeatures(features); // Add the track to the editor
 
 			// Zomm the map on the added features
 			var extent = ol.extent.createOrUpdateEmpty();
-			for (var f in features)
-				ol.extent.extend(extent, features[f].getGeometry().getExtent());
+			for (var f of features)
+				ol.extent.extend(extent, f.getGeometry().getExtent());
 			button.getMap().getView().fit(extent);
 		} else {
 			// Display the track on the map
@@ -1179,11 +1188,12 @@ function controlLoadGPX() {
 
 /**
  * GPX file downloader control
+ * Requires controlButton
  */
 function controlDownloadGPX() {
 	var map,
 		selectedFeatures = [],
-		el = document.createElement('a'),
+		hiddenElement = document.createElement('a'),
 		button = controlButton('&dArr;', {
 			title: 'Obtenir un fichier GPX',
 			action: function() {
@@ -1194,24 +1204,27 @@ function controlDownloadGPX() {
 				else
 					alert('Sélectionnez une ou plusieurs traces à sauvegarder avec "Shift+Clic"');
 			}
-		}),
-		select = new ol.interaction.Select({
-			condition: ol.events.condition.click,
-			hitTolerance: 6
 		});
-	select.on('select', function(e) {
-		selectedFeatures = e.target.getFeatures().getArray();
-	});
 
 	//HACK for Moz
-	el.target = '_blank';
-	el.style = 'display:none;opacity:0;color:transparent;';
-	(document.body || document.documentElement).appendChild(el);
+	hiddenElement.target = '_blank';
+	hiddenElement.style = 'display:none;opacity:0;color:transparent;';
+	(document.body || document.documentElement).appendChild(hiddenElement);
 
-	button.setMap = function(m) { //HACk overload the ol.control.Control.setMap function
+	button.setMap = function(m) { //HACK overload the ol.control.Control.setMap
 		ol.control.Control.prototype.setMap.call(this, m);
 		map = m;
-		map.addInteraction(select);
+
+		if (!map.sourceEditor) { // If there is no active editor
+			var select = new ol.interaction.Select({
+				condition: ol.events.condition.click,
+				hitTolerance: 6
+			});
+			select.on('select', function(e) {
+				selectedFeatures = e.target.getFeatures().getArray();
+			});
+			map.addInteraction(select);
+		}
 	};
 
 	function download(layers) {
@@ -1227,13 +1240,13 @@ function controlDownloadGPX() {
 		else if (typeof navigator.msSaveBlob !== 'undefined')
 			return navigator.msSaveBlob(file, fileName);
 
-		el.href = URL.createObjectURL(file);
-		el.download = fileName;
+		hiddenElement.href = URL.createObjectURL(file);
+		hiddenElement.download = fileName;
 
-		if (typeof el.click === 'function')
-			el.click();
+		if (typeof hiddenElement.click === 'function')
+			hiddenElement.click();
 		else
-			el.dispatchEvent(new MouseEvent('click', {
+			hiddenElement.dispatchEvent(new MouseEvent('click', {
 				view: window,
 				bubbles: true,
 				cancelable: true
@@ -1244,7 +1257,17 @@ function controlDownloadGPX() {
 }
 
 /**
+ * HACK to display a title on the geocoder
+ */
+window.addEventListener('load', function() {
+	var buttonElement = document.getElementById('gcd-button-control');
+	if (buttonElement)
+		buttonElement.title = 'Recherche par nom';
+}, true);
+
+/**
  * Controls examples
+ * Requires many
  */
 function controlsCollection() {
 	return [
@@ -1268,7 +1291,8 @@ function controlsCollection() {
 			init: true,
 			invisible: false
 		}),
-		// https://github.com/jonataswalker/ol-geocoder
+		// Requires https://github.com/jonataswalker/ol-geocoder/tree/master/dist
+		// Requires hack to display a title on the geocoder
 		new Geocoder('nominatim', {
 			provider: 'osm',
 			lang: 'FR',
@@ -1290,14 +1314,15 @@ function controlsCollection() {
 
 /**
  * Line Editor
+ * Requires controlButton
  */
 function controlLineEditor(id, snapLayers) {
 	var map,
 		// Reading data
-		el = document.getElementById(id), // <textarea> element
+		textareaElement = document.getElementById(id), // <textarea> element
 		format = new ol.format.GeoJSON(),
 		features = format.readFeatures(
-			JSON.parse(el.textContent), {
+			JSON.parse(textareaElement.textContent), {
 				featureProjection: 'EPSG:3857' // Reads/writes data as ESPG:4326 by default
 			}
 		),
@@ -1339,10 +1364,10 @@ function controlLineEditor(id, snapLayers) {
 			}
 		});
 
-	bouton.setMap = function(m) {
-		ol.control.Control.prototype.setMap.call(this, m); //HACK
+	bouton.setMap = function(m) { //HACK overload the ol.control.Control.setMap
+		ol.control.Control.prototype.setMap.call(this, m);
 		map = m;
-		map.sourceEditor = source; //HACK to make other control act differently when there is an editor
+		map.sourceEditor = source; //HACK to make other control acting differently when there is an editor
 		map.addLayer(layer);
 		//HACK Avoid zooming when you leave the mode by doubleclick
 		map.getInteractions().getArray().forEach(function(i) {
@@ -1383,7 +1408,7 @@ function controlLineEditor(id, snapLayers) {
 	});
 	source.on(['change'], function() {
 		// Save lines in <EL> as geoJSON at every change
-		el.textContent = format.writeFeatures(source.getFeatures(), {
+		textareaElement.textContent = format.writeFeatures(source.getFeatures(), {
 			featureProjection: 'EPSG:3857'
 		});
 		map.dispatchEvent('changed'); //HACK Reset hover if any
