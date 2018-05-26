@@ -3,6 +3,11 @@
  * (C) Dominique Cavailhez 2017 - https://github.com/Dominique92/MyOl
  */
 
+/* All buttons*/
+.ol-control button:focus {
+	background-color: rgba(0, 60, 136, .5);
+}
+
 /* Geocoder */
 .ol-coordinate {
 	bottom: 30px;

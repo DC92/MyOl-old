@@ -648,7 +648,7 @@ function layerOverpass(request) {
 			}
 		}),
 
-//REDO	layer.on('onAdd', function(e) {
+		//REDO	layer.on('onAdd', function(e) {
 		onAdd: function(map) {
 			popup.getElement().className = 'overpass-popup';
 			map.addOverlay(popup);
@@ -697,10 +697,10 @@ function layerOverpass(request) {
  */
 function overlaysCollection() {
 	return {
-		//TODO OverPass: layerOverpass(),
+		// OverPass: layerOverpass(),
 		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-		//TODO Massifs: layerMassifsWri()
+		Massifs: layerMassifsWri()
 	};
 }
 
@@ -798,10 +798,9 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
  * options.action {function} called when the control is clicked.
  */
 var nextButtonTopPos = 6; // Top position of next button (em)
-//TODO BEST voir s'ilm n'y a pas de boutons dans control.Control
-//TODO BEST automatiser position des autres boutons
-//TODO BUG ne pas colorier le bouton en sombre lors du clic
+//TODO BUG : pas de boutons de controles en full screen
 //TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
+//TODO BEST automatiser position des autres boutons
 
 function controlButton(label, options) {
 	var buttonElement = document.createElement('button');
@@ -870,7 +869,7 @@ function controlLayers(baseLayers, overLayers) {
 
 			// Check is permalink baselayer
 			var params = getPermalink();
-			var checkedLayer =  Object.keys(baseLayers)[0]; // The first by default
+			var checkedLayer = Object.keys(baseLayers)[0]; // The first by default
 			if (params && params[3] && baseLayers[params[3]])
 				checkedLayer = params[3];
 
@@ -951,9 +950,9 @@ function controlLayers(baseLayers, overLayers) {
 
 		// Refresh layer visibility
 		var input = getCurrentLayer(),
-		  checkedLayer =baseLayers[input.value] || overLayers[input.value];
-		  if(checkedLayer)
-		checkedLayer.setVisible(input.checked);
+			checkedLayer = baseLayers[input.value] || overLayers[input.value];
+		if (checkedLayer)
+			checkedLayer.setVisible(input.checked);
 
 		// Tune range & selector
 		if (checkedBaseLayers.length > 1)
@@ -1033,7 +1032,7 @@ function getPermalink() {
 		return permalinkValue[1].split('/');
 	return [];
 }
- 
+
 /**
  * GPS control
  * Requires controlButton
@@ -1240,8 +1239,11 @@ function controlDownloadGPX() {
 
 	function download(layers) {
 		var fileName = 'trace.gpx',
-			gpx = new ol.format.GPX().writeFeatures(layers).replace(/>/g, ">\n"),
-			file = new Blob([gpx], {
+			gpx = new ol.format.GPX().writeFeatures(layers, {
+				dataProjection: 'EPSG:4326',
+				featureProjection: 'EPSG:3857'
+			}),
+			file = new Blob([gpx.replace(/>/g, ">\n")], {
 				type: 'application/gpx+xml'
 			});
 
@@ -1292,7 +1294,6 @@ function controlsCollection() {
 			collapsible: false // Attribution always open
 		}),
 		new ol.control.Zoom(),
-		//TODO BUG : pas de boutons de controles en full screen
 		new ol.control.FullScreen({
 			label: '\u21d4', // For old navigators support
 			labelActive: '\u21ce',
