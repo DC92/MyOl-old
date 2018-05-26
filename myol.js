@@ -798,6 +798,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
  * options.action {function} called when the control is clicked.
  */
 var nextButtonTopPos = 6; // Top position of next button (em)
+//TODO BEST voir s'ilm n'y a pas de boutons dans control.Control
 //TODO BEST automatiser position des autres boutons
 //TODO BUG ne pas colorier le bouton en sombre lors du clic
 //TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
@@ -833,10 +834,8 @@ function controlButton(label, options) {
  * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
- * Must be called after controlPermalink //TODO REDO !!!
  * Requires controlButton
  */
-//TODO BUG plus de mem de la baselayer
 //TODO BEST mem cookie couches overlay
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
 function controlLayers(baseLayers, overLayers) {
@@ -869,9 +868,15 @@ function controlLayers(baseLayers, overLayers) {
 		if (!selectorElement.childElementCount) { // Only the first time
 			map = event.map; // Take occasion to mem the map reference !
 
+			// Check is permalink baselayer
+			var params = getPermalink();
+			var checkedLayer =  Object.keys(baseLayers)[0]; // The first by default
+			if (params && params[3] && baseLayers[params[3]])
+				checkedLayer = params[3];
+
 			// Base layers selector init
 			for (var name in baseLayers) {
-				var checked = selectorElement.childElementCount ? '' : ' checked="checked"',
+				var checked = name == checkedLayer ? ' checked="checked"' : '',
 					baseElement = document.createElement('div');
 				baseElement.innerHTML =
 					'<input type="checkbox" name="base"' + checked + ' value="' + name + '">' +
@@ -880,13 +885,12 @@ function controlLayers(baseLayers, overLayers) {
 				selectorElement.appendChild(baseElement);
 
 				baseLayers[name].setVisible(!!checked);
-				baseLayers[name].name_ = name;
 				map.addLayer(baseLayers[name]);
 			}
 
 			// Independant layers selector init
 			selectorElement.appendChild(document.createElement('hr'));
-			for (name in overLayers) {
+			for (var name in overLayers) {
 				var overlayElement = document.createElement('div');
 				overlayElement.innerHTML =
 					'<input type="checkbox" name="over" checked="checked" value="' + name + '">' +
@@ -946,85 +950,90 @@ function controlLayers(baseLayers, overLayers) {
 		selectorElement.style.display = open ? '' : 'none';
 
 		// Refresh layer visibility
-		var selectorInputs = selectorElement.getElementsByTagName('input');
-		//TODO BEST ?? pourquoi ça marche pas ? for (var i in selectorInputs)
-		for (var i = 0; i < selectorInputs.length; i++)
-			(baseLayers[selectorInputs[i].value] || overLayers[selectorInputs[i].value]).setVisible(selectorInputs[i].checked);
+		var input = getCurrentLayer(),
+		  checkedLayer =baseLayers[input.value] || overLayers[input.value];
+		  if(checkedLayer)
+		checkedLayer.setVisible(input.checked);
 
 		// Tune range & selector
 		if (checkedBaseLayers.length > 1)
 			checkedBaseLayers[1].setOpacity(rangeElement.value / 100);
-		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - (checkedBaseLayers.length > 1 ? 65 : 40)) + 'px';
+		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 56) + 'px';
 	}
 
 	return control;
 }
 
-/**
- * Permalink control
- * options.invisible {true | false | undefined} add a controlPermalink button to the map.
- * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
- * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
- * Must be called before controlLayers
- * Requires controlButton
- */
-//TODO : only add a link over the attribution
-function controlPermalink(options) {
-	options = options || {};
-	var params;
-
-	return controlButton('&infin;', {
-		title: 'Permalien',
-		invisible: options.invisible,
-		render: function(event) {
-			var view = event.map.getView();
-
-			// Set the map at the init
-			if (options.init !== false && // If use hash & cookies
-				typeof params == 'undefined') { // Only once
-				var perm = location.hash.match(/map=([^#,&;]+)/) || document.cookie.match(/map=([^;]+)/);
-				if (perm) {
-					params = perm[1].split('/'); // Get url controlPermalink
-					if (params.length >= 3) { // Got lon/lat/zoom
-						view.setZoom(params[0]);
-						view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
-					}
-					if (params.length >= 4) { // Got lon/lat/zoom/layer
-						//TODO BUG : ne voit pas encore les layers lors de l'init !!!
-						/*
-						var inputs = document.getElementsByTagName('input');
-						for (var i in inputs)
-							if (inputs[i].name == 'base')
-								inputs[i].checked = inputs[i].value == decodeURI(params[3]);
-						event.map.dispatchEvent('click'); //HACK Simulates a map click to refresh the layer switcher if any
-						view.dispatchEvent('change'); //HACK Simulates a view change to refresh the layers depending on the zoom if any
-						*/
-					}
-				}
-			}
-
-			// Mem map position & layers
-			var ll4326 = ol.proj.transform(view.getCenter(), 'EPSG:3857', 'EPSG:4326');
-			params = [
-				parseInt(view.getZoom()),
-				Math.round(ll4326[0] * 100000) / 100000,
-				Math.round(ll4326[1] * 100000) / 100000
-			];
-			event.map.getLayers().forEach(function(element) {
-				if (element.getVisible() && element.name_)
-					params[3] = encodeURI(element.name_);
-			});
-
-			// Mem position in a cookie
-			document.cookie = 'map=' + params.join('/') + ';path=/';
-		},
-		// Set controlPermalink at map position
-		action: function() {
-			window.location.href = window.location.pathname + '#map=' + params.join('/');
-		}
-	});
+function getCurrentLayer() {
+	var inputs = document.getElementsByTagName('input');
+	for (var i of inputs)
+		if (i.name == 'base' && i.checked)
+			return i;
+	return {};
 }
 
+/**
+ * Permalink control
+ * options.visible {true | false | undefined} add a controlPermalink button to the map.
+ * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
+ * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
+ */
+function controlPermalink(options) {
+	var divElement = document.createElement('div'),
+		aElement = document.createElement('a'),
+		control = new ol.control.Control({
+			element: divElement,
+			render: render
+		}),
+		params;
+	if (options.visible) {
+		divElement.className = 'ol-permalink';
+		aElement.innerHTML = 'Permalink';
+		aElement.title = 'Generate a link with map zoom & position';
+		divElement.appendChild(aElement);
+	}
+
+	function render(event) {
+		var view = event.map.getView();
+
+		// Set the map at the init
+		if (options.init !== false && // If use hash & cookies
+			typeof params == 'undefined') { // Only once
+			params = getPermalink();
+			if (params.length >= 3) { // Got lon/lat/zoom
+				view.setZoom(params[0]);
+				view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
+			}
+		}
+
+		// Check the current map zoom & position
+		var ll4326 = ol.proj.transform(view.getCenter(), 'EPSG:3857', 'EPSG:4326');
+		params = [
+			parseInt(view.getZoom()),
+			Math.round(ll4326[0] * 100000) / 100000,
+			Math.round(ll4326[1] * 100000) / 100000,
+			getCurrentLayer().value
+		];
+
+		// Set the new permalink
+		aElement.href = '#map=' + params.join('/');
+		document.cookie = 'map=' + params.join('/') + ';path=/';
+	}
+
+	return control;
+}
+// Gives the permalink params
+
+var permalinkValue =
+	location.hash.match(/map=([^#,&;]+)/) || // Priority to the hash
+	document.cookie.match(/map=([^;]+)/); // Then the cookie
+
+function getPermalink() {
+	if (permalinkValue)
+		return permalinkValue[1].split('/');
+	return [];
+}
+ 
 /**
  * GPS control
  * Requires controlButton
@@ -1081,6 +1090,8 @@ function controlGPS() {
  * Control that displays the length of a line overflown
  */
 function controlLengthLine() {
+	//HACK reuse ol.control.MousePosition
+	//TODO BEST use ol.control.Control
 	var control = new ol.control.MousePosition({
 		className: 'ol-length-line'
 	});
@@ -1281,6 +1292,7 @@ function controlsCollection() {
 			collapsible: false // Attribution always open
 		}),
 		new ol.control.Zoom(),
+		//TODO BUG : pas de boutons de controles en full screen
 		new ol.control.FullScreen({
 			label: '\u21d4', // For old navigators support
 			labelActive: '\u21ce',
@@ -1289,7 +1301,7 @@ function controlsCollection() {
 		controlLengthLine(),
 		controlPermalink({
 			init: true,
-			invisible: false
+			visible: true
 		}),
 		// Requires https://github.com/jonataswalker/ol-geocoder/tree/master/dist
 		// Requires hack to display a title on the geocoder

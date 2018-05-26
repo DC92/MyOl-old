@@ -116,3 +116,20 @@ border: 1px solid #abc;
 	font-size: 12px;
 	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
 }
+
+/* Permalink */
+.ol-permalink {
+	position: relative;
+	bottom: 43px;
+	text-align: right;
+}
+.ol-permalink a {
+	background-color: rgba(255, 255, 255, 0.8);
+	border-top-left-radius: 4px;
+	border-bottom-left-radius: 4px;
+	padding: 3px;
+	font-size: .7rem;
+	line-height: 1.375em;
+	color: #000;
+	right: 0;
+}
