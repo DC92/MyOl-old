@@ -140,7 +140,7 @@ function layerTileIncomplete(extent, sources) {
 
 		// Search for sources according to the map resolution
 		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).filter(function(event) { //TODO BEST réécrire avec autre chose que filter !!! (ou écriture silplifiée)
+			resolution = Object.keys(sources).filter(function(event) { // HACK : use of filter to perform an action
 				return event > view.getResolution();
 			})[0];
 
@@ -855,7 +855,6 @@ function controlLayers(baseLayers, overLayers) {
 
 	// Layers selector
 	var selectorElement = document.createElement('div');
-	//TODO DELETE selectorElement.className = 'switch-layer';
 	selectorElement.style.display = 'none';
 	selectorElement.style.overflow = 'auto';
 	selectorElement.title = 'Ctrl+click : plusieurs fonds';
@@ -863,10 +862,9 @@ function controlLayers(baseLayers, overLayers) {
 
 	// When the map is created & rendered
 	var map;
-
 	function render(event) {
-		if (!selectorElement.childElementCount) { // Only the first time
-			map = event.map; // Take occasion to mem the map reference !
+		if (!map) { // Only the first time
+			map = event.map;
 
 			// Check is permalink baselayer
 			var params = getPermalink();
@@ -921,7 +919,7 @@ function controlLayers(baseLayers, overLayers) {
 		}
 	}
 
-	var currentBaseLayerName = Object.keys(baseLayers)[0], // Cursor of the name of the previous layer displayed. By default the first
+	var currentBaseLayerName = Object.keys(baseLayers)[0], // Name of the previous layer displayed. By default the first
 		checkedBaseLayers = []; // The selected layers (in basic orderLayers)
 
 	// Click on a check mark
@@ -950,15 +948,14 @@ function controlLayers(baseLayers, overLayers) {
 		selectorElement.style.display = open ? '' : 'none';
 
 		// Refresh layer visibility
-		var input = getCurrentLayer(),
-			checkedLayer = baseLayers[input.value] || overLayers[input.value];
-		if (checkedLayer)
-			checkedLayer.setVisible(input.checked);
+		var selectorInputs = selectorElement.getElementsByTagName('input');
+		for (var i = 0; i < selectorInputs.length; i++)
+			(baseLayers[selectorInputs[i].value] || overLayers[selectorInputs[i].value]).setVisible(selectorInputs[i].checked);
 
 		// Tune range & selector
 		if (checkedBaseLayers.length > 1)
 			checkedBaseLayers[1].setOpacity(rangeElement.value / 100);
-		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 58 -(checkedBaseLayers.length > 1 ? 24 : 0)) + 'px';
+		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 58 - (checkedBaseLayers.length > 1 ? 24 : 0)) + 'px';
 	}
 
 	return control;
@@ -1090,42 +1087,42 @@ function controlGPS() {
  * Control that displays the length of a line overflown
  */
 function controlLengthLine() {
-    var divElement = document.createElement('div'),
-        control = new ol.control.Control({
-            element: divElement,
-            render: render
-        });
+	var divElement = document.createElement('div'),
+		control = new ol.control.Control({
+			element: divElement,
+			render: render
+		});
 
-    function render(event) {
-        if (!divElement.className) { // Only once
-            divElement.className = 'ol-length-line';
+	function render(event) {
+		if (!divElement.className) { // Only once
+			divElement.className = 'ol-length-line';
 
-            event.map.on(['pointermove'], function(event) {
-                divElement.innerHTML = ''; // Clear the measure if n hoveredo feature
-            });
+			event.map.on(['pointermove'], function(event) {
+				divElement.innerHTML = ''; // Clear the measure if n hoveredo feature
+			});
 
-            event.map.addInteraction(new ol.interaction.Select({
-                condition: ol.events.condition.pointerMove,
-                hitTolerance: 6,
-                filter: calculateLength // HACK : use of filter to perform an action
-            }));
-        }
-    }
+			event.map.addInteraction(new ol.interaction.Select({
+				condition: ol.events.condition.pointerMove,
+				hitTolerance: 6,
+				filter: calculateLength // HACK : use of filter to perform an action
+			}));
+		}
+	}
 
-    function calculateLength(f) {
-        var length = ol.Sphere.getLength(f.getGeometry());
-        if (length >= 100000)
-            divElement.innerHTML = (Math.round(length / 1000)) + ' km';
-        else if (length >= 10000)
-            divElement.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-        else if (length >= 1000)
-            divElement.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-        else if (length >= 1)
-            divElement.innerHTML = (Math.round(length)) + ' m';
-        return length > 0; // Continue hover if we are above a line
-    }
+	function calculateLength(f) {
+		var length = ol.Sphere.getLength(f.getGeometry());
+		if (length >= 100000)
+			divElement.innerHTML = (Math.round(length / 1000)) + ' km';
+		else if (length >= 10000)
+			divElement.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+		else if (length >= 1000)
+			divElement.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+		else if (length >= 1)
+			divElement.innerHTML = (Math.round(length)) + ' m';
+		return length > 0; // Continue hover if we are above a line
+	}
 
-    return control;
+	return control;
 }
 /**
  * GPX file loader control
@@ -1189,6 +1186,7 @@ function controlDownloadGPX() {
 		hiddenElement = document.createElement('a'),
 		button = controlButton('&dArr;', {
 			title: 'Obtenir un fichier GPX',
+			render: render,
 			action: function() {
 				if (map.sourceEditor) // If there is an active editor
 					download(map.sourceEditor.getFeatures());
@@ -1204,20 +1202,20 @@ function controlDownloadGPX() {
 	hiddenElement.style = 'display:none;opacity:0;color:transparent;';
 	(document.body || document.documentElement).appendChild(hiddenElement);
 
-	//TODO BEST replace by function render(event) {event.map...
-	button.setMap = function(m) { //HACK overload the ol.control.Control.setMap
-		ol.control.Control.prototype.setMap.call(this, m);
-		map = m;
+	function render(event) {
+		if (!map) {
+			map = event.map;
 
-		if (!map.sourceEditor) { // If there is no active editor
-			var select = new ol.interaction.Select({
-				condition: ol.events.condition.click,
-				hitTolerance: 6
-			});
-			select.on('select', function(e) {
-				selectedFeatures = e.target.getFeatures().getArray();
-			});
-			map.addInteraction(select);
+			if (!map.sourceEditor) { // If there is no active editor
+				var select = new ol.interaction.Select({
+					condition: ol.events.condition.click,
+					hitTolerance: 6
+				});
+				select.on('select', function(e) {
+					selectedFeatures = e.target.getFeatures().getArray();
+				});
+				map.addInteraction(select);
+			}
 		}
 	};
 
@@ -1314,9 +1312,7 @@ function controlsCollection() {
  * Requires controlButton
  */
 function controlLineEditor(id, snapLayers) {
-	var map,
-		// Reading data
-		textareaElement = document.getElementById(id), // <textarea> element
+	var textareaElement = document.getElementById(id), // <textarea> element
 		format = new ol.format.GeoJSON(),
 		features = format.readFeatures(
 			JSON.parse(textareaElement.textContent), {
@@ -1349,6 +1345,7 @@ function controlLineEditor(id, snapLayers) {
 		},
 		editMode = true, // Versus false if insert line mode
 		bouton = controlButton('E', {
+			render: render,
 			title: "Editeur de lignes\n" +
 				"Click sur E pour ajouter ou étendre une ligne, doubleclick pour finir\n" +
 				"Click sur un sommet puis déplacer pour modifier\n" +
@@ -1359,26 +1356,27 @@ function controlLineEditor(id, snapLayers) {
 			action: function() {
 				setMode(editMode ^= 1); // Alternately switch modes
 			}
-		});
+		}),
+		map;
 
-	//TODO BEST replace by function render(event) {event.map...
-	bouton.setMap = function(m) { //HACK overload the ol.control.Control.setMap
-		ol.control.Control.prototype.setMap.call(this, m);
-		map = m;
-		map.sourceEditor = source; //HACK to make other control acting differently when there is an editor
-		map.addLayer(layer);
-		//HACK Avoid zooming when you leave the mode by doubleclick
-		map.getInteractions().getArray().forEach(function(i) {
-			if (i instanceof ol.interaction.DoubleClickZoom)
-				map.removeInteraction(i);
-		});
+	function render(event) {
+		if (!map) {
+			map = event.map;
+			map.sourceEditor = source; //HACK to make other control acting differently when there is an editor
+			map.addLayer(layer);
+			//HACK Avoid zooming when you leave the mode by doubleclick
+			map.getInteractions().getArray().forEach(function(i) {
+				if (i instanceof ol.interaction.DoubleClickZoom)
+					map.removeInteraction(i);
+			});
 
-		// Snap on features external to the editor
-		if (snapLayers)
-			for (var s in snapLayers)
-				snapLayers[s].getSource().on('change', snapFeatures);
+			// Snap on features external to the editor
+			if (snapLayers)
+				for (var s in snapLayers)
+					snapLayers[s].getSource().on('change', snapFeatures);
 
-		setMode(true); // Set edit mode by default
+			setMode(true); // Set edit mode by default
+		}
 	};
 
 	function snapFeatures() {
