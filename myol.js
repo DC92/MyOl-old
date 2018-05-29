@@ -839,6 +839,7 @@ function controlButton(label, options) {
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
 function controlLayers(baseLayers, overLayers) {
 	var control = controlButton('&hellip;', {
+		className: 'switch-layer',
 		title: 'Liste des cartes',
 		rightPosition: 0.5,
 		render: render
@@ -854,7 +855,7 @@ function controlLayers(baseLayers, overLayers) {
 
 	// Layers selector
 	var selectorElement = document.createElement('div');
-	selectorElement.className = 'switch-layer';
+	//TODO DELETE selectorElement.className = 'switch-layer';
 	selectorElement.style.display = 'none';
 	selectorElement.style.overflow = 'auto';
 	selectorElement.title = 'Ctrl+click : plusieurs fonds';
@@ -957,7 +958,7 @@ function controlLayers(baseLayers, overLayers) {
 		// Tune range & selector
 		if (checkedBaseLayers.length > 1)
 			checkedBaseLayers[1].setOpacity(rangeElement.value / 100);
-		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 56) + 'px';
+		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 58 -(checkedBaseLayers.length > 1 ? 24 : 0)) + 'px';
 	}
 
 	return control;
@@ -965,8 +966,8 @@ function controlLayers(baseLayers, overLayers) {
 
 function getCurrentLayer() {
 	var inputs = document.getElementsByTagName('input');
-	for (var i of inputs)
-		if (i.name == 'base' && i.checked)
+	for (var i in inputs)
+		if (inputs[i].name == 'base' && i.checked)
 			return i;
 	return {};
 }
@@ -1089,61 +1090,43 @@ function controlGPS() {
  * Control that displays the length of a line overflown
  */
 function controlLengthLine() {
-	//HACK reuse ol.control.MousePosition
-	//TODO BEST use ol.control.Control
-	var control = new ol.control.MousePosition({
-		className: 'ol-length-line'
-	});
+    var divElement = document.createElement('div'),
+        control = new ol.control.Control({
+            element: divElement,
+            render: render
+        });
 
-	control.updateHTML_ = function() {}; //HACK Inhibits the MousePosition display
+    function render(event) {
+        if (!divElement.className) { // Only once
+            divElement.className = 'ol-length-line';
 
-	control.setMap = function(map) { //HACK overload the ol.control.Control.setMap
-		ol.control.MousePosition.prototype.setMap.call(control, map);
+            event.map.on(['pointermove'], function(event) {
+                divElement.innerHTML = ''; // Clear the measure if n hoveredo feature
+            });
 
-		var lengthElement = this.element,
-			interaction = new ol.interaction.Select({
-				condition: ol.events.condition.pointerMove,
-				hitTolerance: 6,
-				filter: calculateLength // HACK : use of filter to perform an action
-			});
+            event.map.addInteraction(new ol.interaction.Select({
+                condition: ol.events.condition.pointerMove,
+                hitTolerance: 6,
+                filter: calculateLength // HACK : use of filter to perform an action
+            }));
+        }
+    }
 
-		function calculateLength(f) {
-			var length = ol.Sphere.getLength(f.getGeometry());
-			if (length >= 100000)
-				lengthElement.innerHTML = (Math.round(length / 1000)) + ' km';
-			else if (length >= 10000)
-				lengthElement.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
-			else if (length >= 1000)
-				lengthElement.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
-			else if (length >= 1)
-				lengthElement.innerHTML = (Math.round(length)) + ' m';
-			return length > 0; // Continue hover if we are above a line
-		}
+    function calculateLength(f) {
+        var length = ol.Sphere.getLength(f.getGeometry());
+        if (length >= 100000)
+            divElement.innerHTML = (Math.round(length / 1000)) + ' km';
+        else if (length >= 10000)
+            divElement.innerHTML = (Math.round(length / 1000 * 10) / 10) + ' km';
+        else if (length >= 1000)
+            divElement.innerHTML = (Math.round(length / 1000 * 100) / 100) + ' km';
+        else if (length >= 1)
+            divElement.innerHTML = (Math.round(length)) + ' m';
+        return length > 0; // Continue hover if we are above a line
+    }
 
-		map.on(['changed'], function() { // Momentary hide hover if anything has changed
-			map.removeInteraction(interaction);
-			lengthElement.innerHTML = null;
-		});
-
-		map.on(['pointermove'], function(event) {
-			var features = map.getFeaturesAtPixel(event.pixel, {
-				hitTolerance: 6
-			});
-
-			if (features) {
-				if (!interaction.getMap())
-					map.addInteraction(interaction);
-			} else {
-				lengthElement.innerHTML = null;
-				if (interaction.getMap())
-					map.removeInteraction(interaction);
-			}
-		});
-	};
-
-	return control;
+    return control;
 }
-
 /**
  * GPX file loader control
  * Requires controlButton
@@ -1177,8 +1160,8 @@ function controlLoadGPX() {
 
 			// Zomm the map on the added features
 			var extent = ol.extent.createOrUpdateEmpty();
-			for (var f of features)
-				ol.extent.extend(extent, f.getGeometry().getExtent());
+			for (var f in features)
+				ol.extent.extend(extent, features[f].getGeometry().getExtent());
 			button.getMap().getView().fit(extent);
 		} else {
 			// Display the track on the map
@@ -1221,6 +1204,7 @@ function controlDownloadGPX() {
 	hiddenElement.style = 'display:none;opacity:0;color:transparent;';
 	(document.body || document.documentElement).appendChild(hiddenElement);
 
+	//TODO BEST replace by function render(event) {event.map...
 	button.setMap = function(m) { //HACK overload the ol.control.Control.setMap
 		ol.control.Control.prototype.setMap.call(this, m);
 		map = m;
@@ -1377,6 +1361,7 @@ function controlLineEditor(id, snapLayers) {
 			}
 		});
 
+	//TODO BEST replace by function render(event) {event.map...
 	bouton.setMap = function(m) { //HACK overload the ol.control.Control.setMap
 		ol.control.Control.prototype.setMap.call(this, m);
 		map = m;
