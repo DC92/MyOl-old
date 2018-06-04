@@ -304,21 +304,23 @@ function layersCollection(keys) {
  * GeoJson POI layer
  * Requires 'onAdd' layer event
  */
-function layerGeoJson(options) {
+function layerVectorURL(options) {
 	var actual_resolution,
 		layer = new ol.layer.Vector({
 			source: new ol.source.Vector({
-				strategy: function(extent, resolution) { // Force loading when zoom in / out (for BBOX)
-					if (actual_resolution != resolution)
+				strategy: function(extent, resolution) { // Reload bbox when zoom in
+					if (this.resolution != resolution)
 						this.clear();
-					actual_resolution = resolution;
+					this.resolution = resolution; // Mem resolution for further requests
 					return [extent];
 				},
 				url: function(extent, resolution, projection) {
-					return options.url + '&bbox=' +
-						ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326').join(',');
+					var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326');
+					return typeof options.url == 'function' ?
+						options.url(bbox) :
+						options.url + '&bbox=' + bbox.join(',');
 				},
-				format: new ol.format.GeoJSON()
+				format: options.format || new ol.format.GeoJSON()
 			}),
 			style: typeof options.style != 'function' ?
 				ol.style.Style.defaultFunction : function(feature) {
@@ -406,10 +408,10 @@ function layerGeoJson(options) {
 
 /**
  * www.refuges.info areas layer
- * Requires layerGeoJson
+ * Requires layerVectorURL
  */
 function layerMassifsWri() {
-	return layerGeoJson({
+	return layerVectorURL({
 		url: '//www.refuges.info/api/polygones?type_polygon=1',
 		style: function(properties) {
 			// Translates the color in RGBA to be transparent
@@ -447,17 +449,16 @@ function layerMassifsWri() {
 
 /**
  * www.refuges.info POI layer
- * Requires layerGeoJson
+ * Requires layerVectorURL
  */
 function layerPointsWri() {
-	return layerGeoJson({
+	return layerVectorURL({
 		url: '//www.refuges.info/api/bbox?type_points=7,10,9,23,6,3,28',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
 					src: '//www.refuges.info/images/icones/' + properties.type.icone + '.png'
-				}),
-				offset: [8, 8]
+				})
 			};
 		},
 		label: function(properties) {
@@ -474,17 +475,16 @@ function layerPointsWri() {
 
 /**
  * chemineur.fr POI layer
- * Requires layerGeoJson
+ * Requires layerVectorURL
  */
 function chemineurLayer() {
-	return layerGeoJson({
+	return layerVectorURL({
 		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
 					src: properties.icone
-				}),
-				offset: [8, 8]
+				})
 			};
 		},
 		label: function(properties) {
@@ -503,190 +503,52 @@ function chemineurLayer() {
  * OSM overpass poi layer
  * From: https://openlayers.org/en/latest/examples/vector-osm.html
  * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
- * Requires layerGeoJson
- * Requires 'onAdd' layer event
+ * Requires layerVectorURL
  */
-//TODO REDO
-function layerOverpass(request) {
-	request = request || { // Default selection
-		// icon_name: '[overpass selection]'
-		ravitaillement: '["shop"~"supermarket|convenience"]',
-		bus: '["highway"="bus_stop"]',
-		parking: '["amenity"="parking"]["access"!="private"]',
-		camping: '["tourism"="camp_site"]',
-		'refuge-garde': '["tourism"="alpine_hut"]',
-		'cabane-non-gardee': '["building"="cabin"]',
-		abri: '["amenity"="shelter"]',
-		hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
-	};
-
-	var popup = new ol.Overlay(({
-		positioning: 'bottom-center',
-		offset: [0, -10],
-		element: document.createElement('div'),
-		autoPan: true,
-		autoPanAnimation: {
-			duration: 250
-		}
-	}));
-
-	function overpassProperties(feature) {
-		var p = feature.getProperties();
-		var ret = { // Default
-			icon: 'batiment-en-montagne',
-			name: 'Inconnu'
-		};
-
-		// Icon
-		for (var r in request) { // hotel: ["tourism"="hotel|guest"]...
-			var selection = request[r].split('"'), // [ tourism = hotel|guest ] ...
-				selectedProperty = p[selection[1]]; // tourism: 'guest'
-			if (selectedProperty &&
-				selectedProperty.match(new RegExp(selection[3]))) // hotel|guest
-				r.name = r.icon = r;
-		}
-
-		// Name
-		var language = {
-				hotel: 'hôtel',
-				guest_house: 'chambre d\'hôte',
-				chalet: 'gîte rural',
-				apartement: 'meublé de tourisme',
-				hostel: 'auberge de jeunesse/gîte d\'étape',
-				camp_site: 'camping',
-				convenience: 'alimentation',
-				supermarket: 'supermarché',
-				bus_stop: 'arrêt de bus'
-			},
-			names = ['old_name', 'alt_name', 'official_name', 'short_name', 'name:ch', 'name:en', 'name:fr', 'name'];
-		for (var n in names)
-			if (p[names[n]])
-				ret.name = p[names[n]];
-		ret.name = ret.name.replace( // Word translation if necessary
-			new RegExp(Object.keys(language).join('|'), 'gi'),
-			function(m) {
-				return language[m.toLowerCase()];
+function layerOverpass(options) {
+	var format = new ol.format.OSMXML();
+	// Convert areas in points when receive the features
+	format.readFeatures = function(source, opt_options) {
+		for (var node = source.documentElement.firstChild; node; node = node.nextSibling)
+			if (node.nodeName == 'way') {
+				var newNode = source.createElement('node');
+				source.documentElement.appendChild(newNode);
+				newNode.id = node.id;
+				for (var subTagNode = node.firstChild; subTagNode; subTagNode = subTagNode.nextSibling)
+					switch (subTagNode.nodeName) {
+						case 'center':
+							newNode.setAttribute('lon', subTagNode.getAttribute('lon'));
+							newNode.setAttribute('lat', subTagNode.getAttribute('lat'));
+							break;
+						case 'tag':
+							newNode.appendChild(subTagNode.cloneNode());
+					}
 			}
-		);
-
-		// Fallback for contact:xxx properties
-		for (var i in p) {
-			var is = i.split(':');
-			if (is[0] == 'contact' && is.length == 2)
-				p[is[1]] = p[i];
-		}
-
-		// Popup
-		var txt = [
-			'<b>' + ret.name + '</b>', [
-				ret.icon,
-				'*'.repeat(p.stars),
-				p.rooms ? p.rooms + 'ch' : '',
-				p.beds ? p.beds + 'p' : '',
-				p.places ? p.places + 'p' : '',
-				p.capacity ? p.capacity + 'p' : '',
-			],
-			p.ele ? 'Alt: ' + p.ele + 'm' : '',
-			p.phone ? '&#9742; <a href="tel:' + p.phone.replace(/[^0-9\+]+/ig, '') + '">' + p.phone + '</a>' : '',
-			p.mobile ? '&#9742; <a href="tel:' + p.mobile.replace(/[^0-9\+]+/ig, '') + '">' + p.mobile + '</a>' : '',
-			p.email ? '<a href="mailto:' + p.email + '">' + p.email + '</a>' : '', [
-				p['addr:housename'],
-				p['addr:housenumber'],
-				p['addr:street'],
-				p['addr:hamlet'],
-				p['addr:place'],
-				p['addr:postcode'],
-				p['addr:city']
-			],
-			p.website ? '<a href="' + p.website + '">' + p.website.substring(0, 30) + (p.website.length > 30 ? '...' : '') + '</a>' : '',
-			'Voir sur <a href="http://www.openstreetmap.org/' + p.tag + '/' + feature.getId() + '" target="_blank">OSM</a> &copy;',
-		];
-
-		ret.popup = ('<p>' + txt.join('</p><p>') + '</p>')
-			.replace(/,/g, ' ').replace(/\s+/g, ' ').replace(/\s+<\/p>/g, '<\/p>').replace(/<p>\s*<\/p>/ig, '');
-
-		return ret;
+		return ol.format.XMLFeature.prototype.readFeatures.call(this, source, opt_options);
 	}
-	var client = new XMLHttpRequest();
 
-	function ajaxLoaded() { //REDO voir si on met inline ou pas ???
-		// Optionaly replace way (surface) by node (centered point)
-		var xml = client.responseText.replace(
-			/<way id="([0-9]+)">\s*<center lat="([0-9\.]+)" lon="([0-9\.]+)"\/>(.*)/g,
-			'<node id="$1" lat="$2" lon="$3">'
-		).replace(
-			/<\/(way|node)>/g,
-			'<tag k="tag" v="$1"/></node>'
-		);
-
-		var features = new ol.format.OSMXML().readFeatures(xml, {
-			featureProjection: map.getView().getProjection() //REDO MISSING map !!
-		});
-		source.addFeatures(features); //REDO MISSING source
-	}
-	return new ol.layer.Vector({
-		source: new ol.source.Vector({
-			format: new ol.format.OSMXML(),
-			strategy: ol.loadingstrategy.bbox,
-
-			loader: function(extent, resolution, projection) { // AJAX XML loader for OSM overpass
-				// Prepare arguments
-				var source = this, // To reuse it in a later closure function (load)
-					ex4326 = ol.proj.transformExtent(extent, projection, 'EPSG:4326'),
-					bbox = '(' + ex4326[1] + ',' + ex4326[0] + ',' + ex4326[3] + ',' + ex4326[2] + ')',
-					args = [],
-					selections = Object.values(request);
-				for (var s in selections)
-					args.push('node' + selections[s] + bbox, 'way' + selections[s] + bbox);
-
-				// Send the AJAX request
-				client.open('POST', '//overpass-api.de/api/interpreter');
-				client.send('(' + args.join(';') + ');out center;');
-
-				// Receive the response
-				client.addEventListener('load', ajaxLoaded);
-			}
-		}),
-
-		//REDO	layer.on('onAdd', function(e) {
-		onAdd: function(map) {
-			popup.getElement().className = 'overpass-popup';
-			map.addOverlay(popup);
-
-			// Click or change map size close the popup
-			map.on(['click', 'change:size'], function() {
-				popup.getElement().innerHTML = '';
-			});
+	return layerVectorURL({
+		url: function(bbox) {
+			var bb = bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2];
+			return options.url +
+				'?data=[timeout:5];(' + // Not too much !
+				'node[' + options.features + '](' + bb + ');' + // Ask for nodes in the bbox
+				'way[' + options.features + '](' + bb + ');' + // Ask also areas
+				');out center;'; // add center of areas
 		},
-
-		style: function(feature) {
-			return new ol.style.Style({
+		format: format,
+		style: function(properties) {
+/*DCMM*/{var _v=properties,_r='';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
+			return {
 				image: new ol.style.Icon({
-					src: '//www.refuges.info/images/icones/' + overpassProperties(feature).icon + '.png' // hotel
-				}),
-				offset: [8, 8]
-			});
-		},
-
-		hover: function(feature) {
-			return new ol.style.Style({
-				text: new ol.style.Text({
-					text: overpassProperties(feature).name.toUpperCase(),
-					font: 'bold 10px Verdana',
-					fill: new ol.style.Fill({
-						color: 'black'
-					}),
-					stroke: new ol.style.Stroke({
-						color: '#def',
-						width: 8
-					})
+					src: '//www.refuges.info/images/icones/abri.png'
 				})
-			});
+			};
 		},
-
-		click: function(feature) {
-			popup.getElement().innerHTML = overpassProperties(feature).popup;
-			popup.setPosition(feature.getGeometry().flatCoordinates);
+		label: function(properties) {
+			return {
+				text: properties.name
+			};
 		}
 	});
 }
@@ -697,10 +559,13 @@ function layerOverpass(request) {
  */
 function overlaysCollection() {
 	return {
-		// OverPass: layerOverpass(),
-		Chemineur: chemineurLayer(),
+		OverPass: layerOverpass({
+			url: 'https://overpass-api.de/api/interpreter',
+			features: '"tourism"~"hotel|guest_house|chalet|hostel|apartment"'
+		}),
+		//TODO Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
-		Massifs: layerMassifsWri()
+		//TODO Massifs: layerMassifsWri()
 	};
 }
 
@@ -975,6 +840,7 @@ function getCurrentLayer() {
  * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
  * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
  */
+//TODO TEST ne marche pas quand clique sur un onglet de Chrome avec un permalink
 function controlPermalink(options) {
 	var divElement = document.createElement('div'),
 		aElement = document.createElement('a'),
