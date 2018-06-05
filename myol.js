@@ -527,6 +527,20 @@ function layerOverpass(options) {
 		return ol.format.XMLFeature.prototype.readFeatures.call(this, source, opt_options);
 	}
 
+/*
+	request = request || { // Default selection
+		// icon_name: '[overpass selection]'
+		ravitaillement: '["shop"~"supermarket|convenience"]',
+		bus: '["highway"="bus_stop"]',
+		parking: '["amenity"="parking"]["access"!="private"]',
+		camping: '["tourism"="camp_site"]',
+		'refuge-garde': '["tourism"="alpine_hut"]',
+		'cabane-non-gardee': '["building"="cabin"]',
+		abri: '["amenity"="shelter"]',
+		hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
+	};
+*/
+
 	return layerVectorURL({
 		url: function(bbox) {
 			var bb = bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2];
@@ -695,6 +709,31 @@ function controlButton(label, options) {
 }
 
 /**
+ * Mem checked checkboxes in a cookie
+ */
+function controlCheckbox(name) {
+	window.addEventListener('load', function() {
+		var cookie = document.cookie.match('map' + name + '=([^;]+)'),
+			checkElements = document.getElementsByName(name);
+
+		for (var e in checkElements) {
+			if (cookie && cookie[1].split(',').includes(checkElements[e].value))
+				checkElements[e].click();
+			checkElements[e].onchange = checkChanged
+		}
+
+		function checkChanged() {
+			var params = [];
+			for (var e in checkElements)
+				if (checkElements[e].checked)
+					params.push(checkElements[e].value);
+
+			document.cookie = 'map' + name + '=' + params.join(',') + ';path=/';
+		}
+	});
+}
+
+/**
  * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
@@ -722,7 +761,7 @@ function controlLayers(baseLayers, overLayers) {
 	var selectorElement = document.createElement('div');
 	selectorElement.style.display = 'none';
 	selectorElement.style.overflow = 'auto';
-	selectorElement.title = 'Ctrl+click : plusieurs fonds';
+	selectorElement.title = 'Ctrl+click : plusieurs couches';
 	control.element.appendChild(selectorElement);
 
 	// When the map is created & rendered
@@ -742,7 +781,7 @@ function controlLayers(baseLayers, overLayers) {
 				var checked = name == checkedLayer ? ' checked="checked"' : '',
 					baseElement = document.createElement('div');
 				baseElement.innerHTML =
-					'<input type="checkbox" name="base"' + checked + ' value="' + name + '">' +
+					'<input type="checkbox" name="baselayerCheckbox"' + checked + ' value="' + name + '">' +
 					'<span title="">' + name + '</span>';
 				baseElement.onclick = checkLayer;
 				selectorElement.appendChild(baseElement);
@@ -750,6 +789,7 @@ function controlLayers(baseLayers, overLayers) {
 				baseLayers[name].setVisible(!!checked);
 				map.addLayer(baseLayers[name]);
 			}
+			controlCheckbox('baselayerCheckbox'); //TODO REDO enlever autre mémorisation dans cookie
 
 			// Independant layers selector init
 			selectorElement.appendChild(document.createElement('hr'));
@@ -829,7 +869,7 @@ function controlLayers(baseLayers, overLayers) {
 function getCurrentLayer() {
 	var inputs = document.getElementsByTagName('input');
 	for (var i in inputs)
-		if (inputs[i].name == 'base' && i.checked)
+		if (inputs[i].name == 'baselayerCheckbox' && i.checked)
 			return i;
 	return {};
 }
