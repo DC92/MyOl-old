@@ -29,99 +29,21 @@
 </head>
 <body>
 	<div id="map"></div>
-
 	
-	
-<ul>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="7"
-																	checked="checked"
-															/>
-							<span>cabane non gardée							</span>
-						</label>
-					</li>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="10"
-															/>
-							<span>refuge gardé							</span>
-						</label>
-					</li>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="9"
-																	checked="checked"
-															/>
-							<span>gîte d'étape							</span>
-						</label>
-					</li>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="23"
-															/>
-							<span>point d'eau							</span>
-						</label>
-					</li>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="6"
-																	checked="checked"
-															/>
-							<span>sommet							</span>
-						</label>
-					</li>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="3"
-															/>
-							<span>passage délicat							</span>
-						</label>
-					</li>
-									<li>
-						<label>
-							<input
-								type="checkbox"
-								name="point_type"
-								value="28"
-																	checked="checked"
-															/>
-							<span>bâtiment en montagne							</span>
-						</label>
-					</li>
-								<li>
-					<span id="check-types">
-						Tout
-						<input type="checkbox" name="check-types-input" onclick="maj_poi(true)" />
-					</span>
-				</li>
-				<li><a href="/wiki/legende_carte">Légende</a></li>
-			</ul>	
-	
-	
-	
+	<ul>
+		<li>TOUT<input id="domlist" type="checkbox" name="point_type" /></li>
+		<li><input type="checkbox" name="point_type" value="7" checked="checked" />cabane non gardée</li>
+		<li><input type="checkbox" name="point_type" value="10" />refuge gardé</li>
+		<li><input type="checkbox" name="point_type" value="9" checked="checked" />gîte d'étape</li>
+		<li><input type="checkbox" name="point_type" value="23" />point d'eau</li>
+		<li><input type="checkbox" name="point_type" value="6" checked="checked" />sommet</li>
+		<li><input type="checkbox" name="point_type" value="3" />passage délicat</li>
+		<li><input type="checkbox" name="point_type" value="28" checked="checked" />bâtiment en montagne</li>
+	</ul>	
+		
 	<div id="lonlat"></div>
 	<div id="edit-lonlat"></div>
-	<!--select multiple="multiple" class="layerselect" id="layer-select" style="overflow-y:hidden" onchange="layerSelection()"></select-->
-	<div>Ctrl+click:couches multiples</div>
+
 	<textarea id="geojson" rows="25" cols="80">
 		{
 			"type": "FeatureCollection",
@@ -195,7 +117,7 @@
 				'<br/>Y <input type="text" onchange="viseur.edit(this,1,21781)" size="12" maxlength="12" value="{3}"/>'
 			],
 			'edit'));
-		map.addControl(controlLineEditor('geojson'), overlays);//TODO BUG cole ne marche pas
+		map.addControl(controlLineEditor('geojson'), overlays);
 	</script>
 </body>
 </html>

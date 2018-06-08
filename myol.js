@@ -311,11 +311,12 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) {
 	return [extent];
 };
 
-//TODO sélecteur de type de pictos
+//TODO sélecteur de type de pictos -> Toutes couches
 //TODO écarteur de pictos trop proches
 /**
  * GeoJson POI layer
  * Requires 'onAdd' layer event
+ * Requires ol.loadingstrategy.bboxLimited
  */
 function layerVectorURL(options) {
 	var source = new ol.source.Vector({
@@ -340,23 +341,32 @@ function layerVectorURL(options) {
 	// Optional checkboxes to tune layer parameters
 	var checkElements = document.getElementsByName(options.checkBoxes),
 		cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)');
-	// Init the checks according to the cookie
-	if (checkElements)
-		for (var e in checkElements) {
-			if (cookie)
-				checkElements[e].checked = cookie[1].split(',').includes(checkElements[e].value);
-			checkElements[e].onchange = checkChanged;
-		}
+
+	for (var e = 0; e < checkElements.length; e++) {
+		if (cookie) // Init the checks according to the cookie
+			checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
+
+		// Attach the action
+		checkElements[e].addEventListener('change', checkChanged, false);
+	}
+
 	// Refresh layer when selection change
-	function checkChanged(e) {
-		//TODO select / deselect all
+	//TODO desactivate layer when no params selected
+	function checkChanged(event) {
+		// Select/deselect all
+		if (event && event.target.value == 'on') // An <input> without name
+			for (var e = 0; e < checkElements.length; e++)
+				checkElements[e].checked = event.target.checked;
+
+		// Get status of all checks
 		var p = [];
-		for (var e in checkElements)
-			if (checkElements[e].checked)
+		for (var e = 0; e < checkElements.length; e++)
+			if (checkElements[e].checked &&
+				checkElements[e].value != 'on') // Except the "all" one
 				p.push(checkElements[e].id || checkElements[e].value);
 		document.cookie = 'map' + options.checkBoxes + '=' + p.join(',') + ';path=/'; // Mem in a cookie
 
-		source.clear();
+		source.clear(); // Redraw the layer
 		return p;
 	}
 
@@ -635,7 +645,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 				features: [iconFeature]
 			}),
 			style: iconStyle,
-			zIndex: 1
+			zIndex: 2
 		});
 	layer.on('onAdd', function(e) {
 		if (edit) {
@@ -1207,6 +1217,7 @@ function controlsCollection() {
  * Line Editor
  * Requires controlButton
  */
+//TODO BUG stick ne marche pas
 function controlLineEditor(id, snapLayers) {
 	var textareaElement = document.getElementById(id), // <textarea> element
 		format = new ol.format.GeoJSON(),
@@ -1221,7 +1232,7 @@ function controlLineEditor(id, snapLayers) {
 		}),
 		layer = new ol.layer.Vector({
 			source: source,
-			zIndex: 1
+			zIndex: 3
 		}),
 		interactions = {
 			snap: new ol.interaction.Snap({
