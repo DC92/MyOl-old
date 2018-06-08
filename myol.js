@@ -299,41 +299,76 @@ function layersCollection(keys) {
 //***************************************************************
 // VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
+/**
+ * BBOX limited strategy
+ * Same that bbox but reloads if we zoom in because we delivered more points when zoom in
+ * return {ol.loadingstrategy} to be used in layer definition
+ */
+ol.loadingstrategy.bboxLimited = function(extent, resolution) {
+	if (this.resolution != resolution) // Force loading when zoom in
+		this.clear();
+	this.resolution = resolution; // Mem resolution for further requests
+	return [extent];
+};
+
 //TODO sélecteur de type de pictos
+//TODO écarteur de pictos trop proches
 /**
  * GeoJson POI layer
  * Requires 'onAdd' layer event
  */
 function layerVectorURL(options) {
-	var actual_resolution,
+	// Optional checkboxes to tune layer parameters
+	var checkElements = document.getElementsByName(options.checkBoxes),
+		cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)'),
+		source = new ol.source.Vector({
+			strategy: ol.loadingstrategy.bboxLimited,
+			url: function(extent, resolution, projection) {
+				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326');
+				return typeof options.url == 'function' ?
+					options.url(bbox, checkChanged()) :
+					options.url + checkChanged().join(',') + '&bbox=' + bbox.join(',');
+			},
+			format: options.format || new ol.format.GeoJSON()
+		}),
 		layer = new ol.layer.Vector({
-			source: new ol.source.Vector({
-				strategy: function(extent, resolution) { // Reload bbox when zoom in
-					if (this.resolution != resolution)
-						this.clear();
-					this.resolution = resolution; // Mem resolution for further requests
-					return [extent];
-				},
-				url: function(extent, resolution, projection) {
-					var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326');
-					return typeof options.url == 'function' ?
-						options.url(bbox) :
-						options.url + '&bbox=' + bbox.join(',');
-				},
-				format: options.format || new ol.format.GeoJSON()
-			}),
+			source: source,
 			style: typeof options.style != 'function' ?
 				ol.style.Style.defaultFunction : function(feature) {
 					return new ol.style.Style(options.style(feature.getProperties()));
 				}
 		});
 
-	layer.options_ = options; // Mem options for intercations
-	layer.on('onAdd', function(e) {
+	// Init the checks according to the cookie
+	if (checkElements)
+		for (var e in checkElements) {
+			if (cookie)
+				checkElements[e].checked = cookie[1].split(',').includes(checkElements[e].value);
+			checkElements[e].onchange = checkChanged;
+		}
+
+	// Refresh layer when selection change
+	function checkChanged(e) {
+		source.clear();
+		//TODO select / deselect all
+		p = [];
+		for (var e in checkElements)
+			if (checkElements[e].checked)
+				p.push(checkElements[e].id || checkElements[e].value);
+		document.cookie = 'map' + options.checkBoxes + '=' + p.join(',') + ';path=/'; // Mem in a cookie
+
+		if (e)
+			source.refresh(); //TODO ne marche pas !! (changer l'url !)
+		return p;
+	}
+
+	layer.options_ = options; // Mem options for intercations //TODO BEST voir ce que ça casse dans ol.layer.Vector / Passer par les classes ?
+	layer.on('onAdd', function(event) {
+		var map = event.map;
 
 		// Hover activity (coloring the feature)
 		if (typeof options.hover == 'function')
-			e.map.addInteraction(new ol.interaction.Select({
+			map.addInteraction(new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.pointerMove,
 				hitTolerance: 6,
@@ -342,56 +377,56 @@ function layerVectorURL(options) {
 				}
 			}));
 
-		if (!e.map.popElement) { // Only once for all layers
+		if (!map.popElement) { // Only once for all layers
 			// Create the label's popup
-			e.map.popElement = document.createElement('div');
+			map.popElement = document.createElement('div');
 			var popup = new ol.Overlay({
-				element: e.map.popElement
+				element: map.popElement
 			});
-			e.map.addOverlay(popup);
+			map.addOverlay(popup);
 
 			// Display a label when hover the feature
-			e.map.on('pointermove', function(event) {
-				e.map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
+			map.on('pointermove', function(event) {
+				map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
 				popup.setPosition(undefined); // Hide label by default if none feature here
 
 				// Search the hovered the feature(s)
-				e.map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
+				map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
 			});
 
 			function checkFeatureAtPixelHovered(feature_, layer_) {
 				if (!popup.getPosition() && // Only for the top one
 					layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
 					var properties_ = layer_.options_.label(feature_.getProperties());
-					e.map.popElement.innerHTML = properties_.text; // Set the label inner
-					e.map.popElement.className = 'popup ' + (properties_.className || '');
+					map.popElement.innerHTML = properties_.text; // Set the label inner
+					map.popElement.className = 'popup ' + (properties_.className || '');
 					// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
 
 					// Now, what anchor for the label () ?
 					var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
 					if (coordinates_.length != 2)
 						coordinates_ = event.coordinate; // If it's a surface, over the pointer
-					popup.setPosition(e.map.getView().getCenter()); // For popup size calculation
+					popup.setPosition(map.getView().getCenter()); // For popup size calculation
 
 					// Well calculated shift of the label regarding the pointer position
-					var pixel = e.map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
-					if (pixel[1] < e.map.popElement.clientHeight + 12) { // On the top of the map (not enough space for it)
-						pixel[0] += pixel[0] < e.map.getSize()[0] / 2 ? 10 : -e.map.popElement.clientWidth - 10;
+					var pixel = map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
+					if (pixel[1] < map.popElement.clientHeight + 12) { // On the top of the map (not enough space for it)
+						pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement.clientWidth - 10;
 						pixel[1] += 2 - pixel[1];
 					} else {
-						pixel[0] -= e.map.popElement.clientWidth * pixel[0] / e.map.getSize()[0];
-						pixel[1] -= e.map.popElement.clientHeight + 10;
+						pixel[0] -= map.popElement.clientWidth * pixel[0] / map.getSize()[0];
+						pixel[1] -= map.popElement.clientHeight + 10;
 					}
-					popup.setPosition(e.map.getCoordinateFromPixel(pixel));
+					popup.setPosition(map.getCoordinateFromPixel(pixel));
 				}
 				if (layer_ && layer_.options_ && layer_.options_.click)
-					e.map.getViewport().style.cursor = 'pointer';
+					map.getViewport().style.cursor = 'pointer';
 			}
 
 			// Click on feature
-			e.map.on('click', function(event) {
+			map.on('click', function(event) {
 				// Search the clicked the feature(s)
-				e.map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
+				map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
 					hitTolerance: 6
 				});
 			});
@@ -453,7 +488,8 @@ function layerMassifsWri() {
  */
 function layerPointsWri() {
 	return layerVectorURL({
-		url: '//www.refuges.info/api/bbox?type_points=7,10,9,23,6,3,28',
+		url: '//www.refuges.info/api/bbox?type_points=',
+		checkBoxes: 'point_type',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -479,7 +515,7 @@ function layerPointsWri() {
  */
 function chemineurLayer() {
 	return layerVectorURL({
-		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
+		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62', //TODO BEST : ajuster le https au vrai besoin
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -528,17 +564,24 @@ function layerOverpass(options) {
 	}
 
 /*
-	request = request || { // Default selection
-		// icon_name: '[overpass selection]'
-		ravitaillement: '["shop"~"supermarket|convenience"]',
-		bus: '["highway"="bus_stop"]',
-		parking: '["amenity"="parking"]["access"!="private"]',
-		camping: '["tourism"="camp_site"]',
-		'refuge-garde': '["tourism"="alpine_hut"]',
-		'cabane-non-gardee': '["building"="cabin"]',
-		abri: '["amenity"="shelter"]',
-		hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
-	};
+request = request || { // Default selection
+	// icon_name: '[overpass selection]'
+	ravitaillement: '["shop"~"supermarket|convenience"]',
+	bus: '["highway"="bus_stop"]',
+	parking: '["amenity"="parking"]["access"!="private"]',
+	camping: '["tourism"="camp_site"]',
+	'refuge-garde': '["tourism"="alpine_hut"]',
+	'cabane-non-gardee': '["building"="cabin"]',
+	abri: '["amenity"="shelter"]',
+	hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
+};
+
+http://overpass-api.de/api/interpreter?data=[out:json][timeout:5];(
+node["tourism"~"hotel|guest_house|chalet|hostel|apartment"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
+way["tourism"~"hotel|guest_house|chalet|hostel|apartment"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
+node["tourism"~"camp_site"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
+way["tourism"~"camp_site"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
+);out center;>;&bbox=6.358337402343751,46.2316280132321,6.725349426269531,46.42720895583364"
 */
 
 	return layerVectorURL({
@@ -573,11 +616,13 @@ function layerOverpass(options) {
  */
 function overlaysCollection() {
 	return {
+/*
 		OverPass: layerOverpass({
 			url: 'https://overpass-api.de/api/interpreter',
 			features: '"tourism"~"hotel|guest_house|chalet|hostel|apartment"'
 		}),
-		//TODO Chemineur: chemineurLayer(),
+*/
+		Chemineur: chemineurLayer(),
 		WRI: layerPointsWri(),
 		//TODO Massifs: layerMassifsWri()
 	};
@@ -709,37 +754,12 @@ function controlButton(label, options) {
 }
 
 /**
- * Mem checked checkboxes in a cookie
- */
-function controlCheckbox(name) {
-	window.addEventListener('load', function() {
-		var cookie = document.cookie.match('map' + name + '=([^;]+)'),
-			checkElements = document.getElementsByName(name);
-
-		for (var e in checkElements) {
-			if (cookie && cookie[1].split(',').includes(checkElements[e].value))
-				checkElements[e].click();
-			checkElements[e].onchange = checkChanged
-		}
-
-		function checkChanged() {
-			var params = [];
-			for (var e in checkElements)
-				if (checkElements[e].checked)
-					params.push(checkElements[e].value);
-
-			document.cookie = 'map' + name + '=' + params.join(',') + ';path=/';
-		}
-	});
-}
-
-/**
  * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
  * overLayers {[ol.layer]} layers that can be independenly added to the map.
  * Requires controlButton
  */
-//TODO BEST mem cookie couches overlay
+//TODO BUG mem cookie ne marche pas
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
 function controlLayers(baseLayers, overLayers) {
 	var control = controlButton('&hellip;', {
@@ -789,7 +809,6 @@ function controlLayers(baseLayers, overLayers) {
 				baseLayers[name].setVisible(!!checked);
 				map.addLayer(baseLayers[name]);
 			}
-			controlCheckbox('baselayerCheckbox'); //TODO REDO enlever autre mémorisation dans cookie
 
 			// Independant layers selector init
 			selectorElement.appendChild(document.createElement('hr'));
