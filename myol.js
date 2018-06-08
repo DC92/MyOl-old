@@ -318,10 +318,7 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) {
  * Requires 'onAdd' layer event
  */
 function layerVectorURL(options) {
-	// Optional checkboxes to tune layer parameters
-	var checkElements = document.getElementsByName(options.checkBoxes),
-		cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)'),
-		source = new ol.source.Vector({
+	var source = new ol.source.Vector({
 			strategy: ol.loadingstrategy.bboxLimited,
 			url: function(extent, resolution, projection) {
 				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326');
@@ -333,12 +330,16 @@ function layerVectorURL(options) {
 		}),
 		layer = new ol.layer.Vector({
 			source: source,
+			zIndex: 1,
 			style: typeof options.style != 'function' ?
 				ol.style.Style.defaultFunction : function(feature) {
 					return new ol.style.Style(options.style(feature.getProperties()));
 				}
 		});
 
+	// Optional checkboxes to tune layer parameters
+	var checkElements = document.getElementsByName(options.checkBoxes),
+		cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)');
 	// Init the checks according to the cookie
 	if (checkElements)
 		for (var e in checkElements) {
@@ -346,19 +347,16 @@ function layerVectorURL(options) {
 				checkElements[e].checked = cookie[1].split(',').includes(checkElements[e].value);
 			checkElements[e].onchange = checkChanged;
 		}
-
 	// Refresh layer when selection change
 	function checkChanged(e) {
-		source.clear();
 		//TODO select / deselect all
-		p = [];
+		var p = [];
 		for (var e in checkElements)
 			if (checkElements[e].checked)
 				p.push(checkElements[e].id || checkElements[e].value);
 		document.cookie = 'map' + options.checkBoxes + '=' + p.join(',') + ';path=/'; // Mem in a cookie
 
-		if (e)
-			source.refresh(); //TODO ne marche pas !! (changer l'url !)
+		source.clear();
 		return p;
 	}
 
@@ -377,68 +375,72 @@ function layerVectorURL(options) {
 				}
 			}));
 
-		if (!map.popElement) { // Only once for all layers
-			// Create the label's popup
-			map.popElement = document.createElement('div');
-			var popup = new ol.Overlay({
-				element: map.popElement
-			});
-			map.addOverlay(popup);
-
-			// Display a label when hover the feature
-			map.on('pointermove', function(event) {
-				map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
-				popup.setPosition(undefined); // Hide label by default if none feature here
-
-				// Search the hovered the feature(s)
-				map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
-			});
-
-			function checkFeatureAtPixelHovered(feature_, layer_) {
-				if (!popup.getPosition() && // Only for the top one
-					layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
-					var properties_ = layer_.options_.label(feature_.getProperties());
-					map.popElement.innerHTML = properties_.text; // Set the label inner
-					map.popElement.className = 'popup ' + (properties_.className || '');
-					// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
-
-					// Now, what anchor for the label () ?
-					var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
-					if (coordinates_.length != 2)
-						coordinates_ = event.coordinate; // If it's a surface, over the pointer
-					popup.setPosition(map.getView().getCenter()); // For popup size calculation
-
-					// Well calculated shift of the label regarding the pointer position
-					var pixel = map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
-					if (pixel[1] < map.popElement.clientHeight + 12) { // On the top of the map (not enough space for it)
-						pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement.clientWidth - 10;
-						pixel[1] += 2 - pixel[1];
-					} else {
-						pixel[0] -= map.popElement.clientWidth * pixel[0] / map.getSize()[0];
-						pixel[1] -= map.popElement.clientHeight + 10;
-					}
-					popup.setPosition(map.getCoordinateFromPixel(pixel));
-				}
-				if (layer_ && layer_.options_ && layer_.options_.click)
-					map.getViewport().style.cursor = 'pointer';
-			}
-
-			// Click on feature
-			map.on('click', function(event) {
-				// Search the clicked the feature(s)
-				map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
-					hitTolerance: 6
-				});
-			});
-
-			function checkFeatureAtPixelClicked(feature_, layer_) {
-				if (layer_ && layer_.options_ && typeof layer_.options_.click == 'function')
-					layer_.options_.click(feature_.getProperties());
-			}
-		}
+		initLayerVectorURLListeners(map);
 	});
 
 	return layer;
+}
+
+function initLayerVectorURLListeners(map) {
+	if (!map.popElement) { // Only once for all layers
+		// Create the label's popup
+		map.popElement = document.createElement('div');
+		var popup = new ol.Overlay({
+			element: map.popElement
+		});
+		map.addOverlay(popup);
+
+		// Display a label when hover the feature
+		map.on('pointermove', function(event) {
+			map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
+			popup.setPosition(undefined); // Hide label by default if none feature here
+
+			// Search the hovered the feature(s)
+			map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
+		});
+
+		function checkFeatureAtPixelHovered(feature_, layer_) {
+			if (!popup.getPosition() && // Only for the top one
+				layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
+				var properties_ = layer_.options_.label(feature_.getProperties());
+				map.popElement.innerHTML = properties_.text; // Set the label inner
+				map.popElement.className = 'popup ' + (properties_.className || '');
+				// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
+
+				// Now, what anchor for the label () ?
+				var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
+				if (coordinates_.length != 2)
+					coordinates_ = event.coordinate; // If it's a surface, over the pointer
+				popup.setPosition(map.getView().getCenter()); // For popup size calculation
+
+				// Well calculated shift of the label regarding the pointer position
+				var pixel = map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
+				if (pixel[1] < map.popElement.clientHeight + 12) { // On the top of the map (not enough space for it)
+					pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement.clientWidth - 10;
+					pixel[1] += 2 - pixel[1];
+				} else {
+					pixel[0] -= map.popElement.clientWidth * pixel[0] / map.getSize()[0];
+					pixel[1] -= map.popElement.clientHeight + 10;
+				}
+				popup.setPosition(map.getCoordinateFromPixel(pixel));
+			}
+			if (layer_ && layer_.options_ && layer_.options_.click)
+				map.getViewport().style.cursor = 'pointer';
+		}
+
+		// Click on feature
+		map.on('click', function(event) {
+			// Search the clicked the feature(s)
+			map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelClicked, {
+				hitTolerance: 6
+			});
+		});
+
+		function checkFeatureAtPixelClicked(feature_, layer_) {
+			if (layer_ && layer_.options_ && typeof layer_.options_.click == 'function')
+				layer_.options_.click(feature_.getProperties());
+		}
+	}
 }
 
 /**
@@ -611,24 +613,6 @@ way["tourism"~"camp_site"](46.2316280132321,6.358337402343751,46.42720895583364,
 }
 
 /**
- * Vector layers examples
- * Requires many
- */
-function overlaysCollection() {
-	return {
-/*
-		OverPass: layerOverpass({
-			url: 'https://overpass-api.de/api/interpreter',
-			features: '"tourism"~"hotel|guest_house|chalet|hostel|apartment"'
-		}),
-*/
-		Chemineur: chemineurLayer(),
-		WRI: layerPointsWri(),
-		//TODO Massifs: layerMassifsWri()
-	};
-}
-
-/**
  * Marqueurs
  * Requires proj4.js for swiss coordinates
  * Requires 'onAdd' layer event
@@ -761,7 +745,7 @@ function controlButton(label, options) {
  */
 //TODO BUG mem cookie ne marche pas
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
-function controlLayers(baseLayers, overLayers) {
+function controlLayersSwitcher(baseLayers) {
 	var control = controlButton('&hellip;', {
 		className: 'switch-layer',
 		title: 'Liste des cartes',
@@ -808,19 +792,6 @@ function controlLayers(baseLayers, overLayers) {
 
 				baseLayers[name].setVisible(!!checked);
 				map.addLayer(baseLayers[name]);
-			}
-
-			// Independant layers selector init
-			selectorElement.appendChild(document.createElement('hr'));
-			for (var name in overLayers) {
-				var overlayElement = document.createElement('div');
-				overlayElement.innerHTML =
-					'<input type="checkbox" name="over" checked="checked" value="' + name + '">' +
-					'<span title="">' + name + '</span>';
-				overlayElement.onclick = displayLayerSelector;
-				selectorElement.appendChild(overlayElement);
-
-				map.addLayer(overLayers[name]);
 			}
 
 			// Hover the button open the selector

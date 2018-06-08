@@ -136,7 +136,16 @@
 	</textarea>
 
 	<script>
-		var map = new ol.Map({
+		var overlays = [
+			layerPointsWri(),
+//			chemineurLayer(),
+//			layerMassifsWri()
+/*			layerOverpass({
+			url: 'https://overpass-api.de/api/interpreter',
+			features: '"tourism"~"hotel|guest_house|chalet|hostel|apartment"'
+		})*/
+		],
+			map = new ol.Map({
 				target: 'map',
 				//	loadTilesWhileInteracting: true,
 				controls: controlsCollection(),
@@ -148,17 +157,17 @@
 					//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
 					//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
 					zoom: 8
-				})
+				}),
+				layers:overlays
 			}),
 			layers = layersCollection({
 				IGN: 'o6owv8ubhn3vbz2uj8jq5j0z', // localhost
 				//	IGN: 'hcxdz5f1p9emo4i1lch6ennl', // chemineur.fr
 				thunderforest: 'a54d38a8b23f435fa08cfb1d0d0b266e', // https://manage.thunderforest.com
 				bing: 'ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt',
-			}),
-			overlays = overlaysCollection();
+			});
 
-		map.addControl(controlLayers(layers, overlays));
+		map.addControl(controlLayersSwitcher(layers));
 		map.addLayer(marqueur(
 			'data:image/svg+xml;utf8,' +
 				'<svg xmlns="http://www.w3.org/2000/svg" width="31" height="43" ' +
@@ -186,7 +195,7 @@
 				'<br/>Y <input type="text" onchange="viseur.edit(this,1,21781)" size="12" maxlength="12" value="{3}"/>'
 			],
 			'edit'));
-		map.addControl(controlLineEditor('geojson', overlays));
+		map.addControl(controlLineEditor('geojson'), overlays);//TODO BUG cole ne marche pas
 	</script>
 </body>
 </html>
