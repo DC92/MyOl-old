@@ -331,42 +331,46 @@ function layerVectorURL(options) {
 		}),
 		layer = new ol.layer.Vector({
 			source: source,
-			zIndex: 1,
+			zIndex: 1, // Above baselayer even if included to the map before
 			style: typeof options.style != 'function' ?
 				ol.style.Style.defaultFunction : function(feature) {
 					return new ol.style.Style(options.style(feature.getProperties()));
 				}
 		});
-
+	//TODO BUG : n'affiche rien si pas de options.checkBoxes
 	// Optional checkboxes to tune layer parameters
-	var checkElements = document.getElementsByName(options.checkBoxes),
-		cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)');
+	if (options.checkBoxes) {
+		var checkElements = document.getElementsByName(options.checkBoxes),
+			cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)');
 
-	for (var e = 0; e < checkElements.length; e++) {
-		if (cookie) // Init the checks according to the cookie
-			checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
+		for (var e = 0; e < checkElements.length; e++) {
+			if (cookie) // Init the checks according to the cookie
+				checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
 
-		// Attach the action
-		checkElements[e].addEventListener('change', checkChanged, false);
+			// Attach the action
+			checkElements[e].addEventListener('change', checkChanged, false);
+		}
 	}
 
 	// Refresh layer when selection change
-	//TODO desactivate layer when no params selected
 	function checkChanged(event) {
-		// Select/deselect all
-		if (event && event.target.value == 'on') // An <input> without name
-			for (var e = 0; e < checkElements.length; e++)
-				checkElements[e].checked = event.target.checked;
-
-		// Get status of all checks
 		var p = [];
-		for (var e = 0; e < checkElements.length; e++)
-			if (checkElements[e].checked &&
-				checkElements[e].value != 'on') // Except the "all" one
-				p.push(checkElements[e].id || checkElements[e].value);
-		document.cookie = 'map' + options.checkBoxes + '=' + p.join(',') + ';path=/'; // Mem in a cookie
+		if (options.checkBoxes) {
+			// Select/deselect all
+			if (event && event.target.value == 'on') // An <input> without name
+				for (var e = 0; e < checkElements.length; e++)
+					checkElements[e].checked = event.target.checked;
 
-		source.clear(); // Redraw the layer
+			// Get status of all checks
+			for (var e = 0; e < checkElements.length; e++)
+				if (checkElements[e].checked &&
+					checkElements[e].value != 'on') // Except the "all" one
+					p.push(checkElements[e].id || checkElements[e].value);
+			document.cookie = 'map' + options.checkBoxes + '=' + p.join(',') + ';path=/'; // Mem in a cookie
+
+			layer.setVisible(p.length); // Desactivate the layer when no params selected
+			source.clear(); // Redraw the layer
+		}
 		return p;
 	}
 
@@ -379,7 +383,7 @@ function layerVectorURL(options) {
 			map.addInteraction(new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.pointerMove,
-				hitTolerance: 6,
+				hitTolerance: 6, // Similar to other defaults
 				style: function(feature) {
 					return new ol.style.Style(options.hover(feature.getProperties()));
 				}
@@ -501,7 +505,7 @@ function layerMassifsWri() {
 function layerPointsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/bbox?type_points=',
-		checkBoxes: 'point_type',
+		checkBoxes: 'poi-wri',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -1223,7 +1227,7 @@ function controlLineEditor(id, snapLayers) {
 		format = new ol.format.GeoJSON(),
 		features = format.readFeatures(
 			JSON.parse(textareaElement.textContent), {
-				featureProjection: 'EPSG:3857' // Reads/writes data as ESPG:4326 by default
+				featureProjection: 'EPSG:3857' // Read/write data as ESPG:4326 by default
 			}
 		),
 		source = new ol.source.Vector({
