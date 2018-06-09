@@ -337,11 +337,10 @@ function layerVectorURL(options) {
 					return new ol.style.Style(options.style(feature.getProperties()));
 				}
 		});
-	//TODO BUG : n'affiche rien si pas de options.checkBoxes
 	// Optional checkboxes to tune layer parameters
 	if (options.checkBoxes) {
 		var checkElements = document.getElementsByName(options.checkBoxes),
-			cookie = document.cookie.match('map' + options.checkBoxes + '=([^;]+)');
+			cookie = document.cookie.match('map-' + options.checkBoxes + '=([^;]+)');
 
 		for (var e = 0; e < checkElements.length; e++) {
 			if (cookie) // Init the checks according to the cookie
@@ -354,27 +353,32 @@ function layerVectorURL(options) {
 
 	// Refresh layer when selection change
 	function checkChanged(event) {
-		var p = [];
+		var allChecks = [];
 		if (options.checkBoxes) {
 			// Select/deselect all
-			if (event && event.target.value == 'on') // An <input> without name
+			if (event && event.target.value == 'on') // The Select/deselect all is an <input> without name
 				for (var e = 0; e < checkElements.length; e++)
 					checkElements[e].checked = event.target.checked;
 
 			// Get status of all checks
 			for (var e = 0; e < checkElements.length; e++)
-				if (checkElements[e].checked &&
-					checkElements[e].value != 'on') // Except the "all" one
-					p.push(checkElements[e].id || checkElements[e].value);
-			document.cookie = 'map' + options.checkBoxes + '=' + p.join(',') + ';path=/'; // Mem in a cookie
-
-			layer.setVisible(p.length); // Desactivate the layer when no params selected
+				if (checkElements[e].checked)
+					allChecks.push(checkElements[e].id || checkElements[e].value);
+			document.cookie = 'map-' + options.checkBoxes + '=' + allChecks.join(',') + ';path=/'; // Mem in a cookie
+			var numChecks = allChecks.filter(function(e) {
+				return e !== 'on'
+			}); // Remove the "all" input (default value = "on")
+			layer.setVisible(
+				numChecks.length || // Desactivate the layer when no params selected
+				(event && event.target.value == 'on' && event.target.checked) || // All params unchecked
+				(allChecks.length && checkElements.length) // No params (only "all" check)
+			);
 			source.clear(); // Redraw the layer
 		}
-		return p;
+		return numChecks;
 	}
 
-	layer.options_ = options; // Mem options for intercations //TODO BEST voir ce que ça casse dans ol.layer.Vector / Passer par les classes ?
+	layer.options_ = options; // Mem options for interactions //TODO BEST voir ce que ça casse dans ol.layer.Vector / Passer par les classes ?
 	layer.on('onAdd', function(event) {
 		var map = event.map;
 
@@ -464,6 +468,7 @@ function initLayerVectorURLListeners(map) {
 function layerMassifsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/polygones?type_polygon=1',
+		checkBoxes: 'massifs-wri',
 		style: function(properties) {
 			// Translates the color in RGBA to be transparent
 			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(properties.couleur);
@@ -723,6 +728,7 @@ var nextButtonTopPos = 6; // Top position of next button (em)
 //TODO BUG : pas de boutons de controles en full screen
 //TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
 //TODO BEST automatiser position des autres boutons
+//TODO BEST recolorier comme WRI
 
 function controlButton(label, options) {
 	var buttonElement = document.createElement('button');
@@ -759,6 +765,7 @@ function controlButton(label, options) {
  */
 //TODO BUG mem cookie ne marche pas
 //TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
+//TODO BEST recolorier en blanc (idem WRI)
 function controlLayersSwitcher(baseLayers) {
 	var control = controlButton('&hellip;', {
 		className: 'switch-layer',

@@ -31,6 +31,9 @@
 	<div id="map"></div>
 	
 	<ul>
+		<li>MASSIFS<input type="checkbox" name="massifs-wri" checked="checked" /></li>
+	</ul>	
+	<ul>
 		<li>TOUT<input type="checkbox" name="poi-wri" /></li>
 		<li><input type="checkbox" name="poi-wri" value="7" checked="checked" />cabane non gardée</li>
 		<li><input type="checkbox" name="poi-wri" value="10" />refuge gardé</li>
@@ -39,9 +42,6 @@
 		<li><input type="checkbox" name="poi-wri" value="6" checked="checked" />sommet</li>
 		<li><input type="checkbox" name="poi-wri" value="3" />passage délicat</li>
 		<li><input type="checkbox" name="poi-wri" value="28" checked="checked" />bâtiment en montagne</li>
-	</ul>	
-	<ul>
-		<li>MASSIFS<input type="checkbox" name="massifs-wri" /></li>
 	</ul>	
 		
 	<div id="lonlat"></div>
@@ -64,7 +64,7 @@
 		var overlays = [
 			layerPointsWri(),
 //			chemineurLayer(),
-//			layerMassifsWri()
+			layerMassifsWri()
 /*			layerOverpass({
 			url: 'https://overpass-api.de/api/interpreter',
 			features: '"tourism"~"hotel|guest_house|chalet|hostel|apartment"'
