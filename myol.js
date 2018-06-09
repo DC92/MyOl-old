@@ -311,8 +311,7 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) {
 	return [extent];
 };
 
-//TODO sélecteur de type de pictos -> Toutes couches
-//TODO écarteur de pictos trop proches
+//TODO BEST écarteur de pictos trop proches
 /**
  * GeoJson POI layer
  * Requires 'onAdd' layer event
@@ -337,6 +336,7 @@ function layerVectorURL(options) {
 					return new ol.style.Style(options.style(feature.getProperties()));
 				}
 		});
+
 	// Optional checkboxes to tune layer parameters
 	if (options.checkBoxes) {
 		var checkElements = document.getElementsByName(options.checkBoxes),
@@ -378,7 +378,7 @@ function layerVectorURL(options) {
 		return numChecks;
 	}
 
-	layer.options_ = options; // Mem options for interactions //TODO BEST voir ce que ça casse dans ol.layer.Vector / Passer par les classes ?
+	layer.options_ = options; //HACK Mem options for interactions
 	layer.on('onAdd', function(event) {
 		var map = event.map;
 
@@ -399,16 +399,17 @@ function layerVectorURL(options) {
 	return layer;
 }
 
+// We use only one listener for hover and one for click for all vector layers
 function initLayerVectorURLListeners(map) {
 	if (!map.popElement) { // Only once for all layers
-		// Create the label's popup
+
+		// Display a label when hover the feature
 		map.popElement = document.createElement('div');
 		var popup = new ol.Overlay({
 			element: map.popElement
 		});
 		map.addOverlay(popup);
 
-		// Display a label when hover the feature
 		map.on('pointermove', function(event) {
 			map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
 			popup.setPosition(undefined); // Hide label by default if none feature here
@@ -537,6 +538,7 @@ function layerPointsWri() {
 function chemineurLayer() {
 	return layerVectorURL({
 		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62', //TODO BEST : ajuster le https au vrai besoin
+		checkBoxes: 'poi-chemineur',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -728,7 +730,6 @@ var nextButtonTopPos = 6; // Top position of next button (em)
 //TODO BUG : pas de boutons de controles en full screen
 //TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
 //TODO BEST automatiser position des autres boutons
-//TODO BEST recolorier comme WRI
 
 function controlButton(label, options) {
 	var buttonElement = document.createElement('button');
@@ -764,8 +765,6 @@ function controlButton(label, options) {
  * Requires controlButton
  */
 //TODO BUG mem cookie ne marche pas
-//TODO BEST GeoJSON Ajax filtre / paramètres / setURL geojson / setRequest OVERPASS
-//TODO BEST recolorier en blanc (idem WRI)
 function controlLayersSwitcher(baseLayers) {
 	var control = controlButton('&hellip;', {
 		className: 'switch-layer',
@@ -1174,7 +1173,7 @@ function controlDownloadGPX() {
 window.addEventListener('load', function() {
 	var buttonElement = document.getElementById('gcd-button-control');
 	if (buttonElement)
-		buttonElement.title = 'Recherche par nom';
+		buttonElement.title = 'Localisation par nom';
 }, true);
 
 /**
