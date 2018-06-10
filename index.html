@@ -29,24 +29,35 @@
 </head>
 <body>
 	<div id="map"></div>
-	
+
 	<ul>
-		<li>Chemineur<input type="checkbox" name="poi-chemineur" checked="checked" /></li>
-	</ul>	
+		<li>Chemineur<input type="checkbox" name="chemineur" checked="checked" /></li>
+	</ul>
 	<ul>
-		<li>TOUT<input type="checkbox" name="poi-wri" /></li>
-		<li><input type="checkbox" name="poi-wri" value="7" checked="checked" />cabane non gardée</li>
-		<li><input type="checkbox" name="poi-wri" value="10" />refuge gardé</li>
-		<li><input type="checkbox" name="poi-wri" value="9" checked="checked" />gîte d'étape</li>
-		<li><input type="checkbox" name="poi-wri" value="23" />point d'eau</li>
-		<li><input type="checkbox" name="poi-wri" value="6" checked="checked" />sommet</li>
-		<li><input type="checkbox" name="poi-wri" value="3" />passage délicat</li>
-		<li><input type="checkbox" name="poi-wri" value="28" checked="checked" />bâtiment en montagne</li>
-	</ul>	
+		<li>WRI<input type="checkbox" name="wri-poi" /></li>
+		<li><input type="checkbox" name="wri-poi" value="7" checked="checked" />cabane non gardée</li>
+		<li><input type="checkbox" name="wri-poi" value="10" />refuge gardé</li>
+		<li><input type="checkbox" name="wri-poi" value="9" checked="checked" />gîte d'étape</li>
+		<li><input type="checkbox" name="wri-poi" value="23" />point d'eau</li>
+		<li><input type="checkbox" name="wri-poi" value="6" checked="checked" />sommet</li>
+		<li><input type="checkbox" name="wri-poi" value="3" />passage délicat</li>
+		<li><input type="checkbox" name="wri-poi" value="28" checked="checked" />bâtiment en montagne</li>
+	</ul>
 	<ul>
-		<li>MASSIFS<input type="checkbox" name="massifs-wri" /></li>
-	</ul>	
-		
+		<li>MASSIFS<input type="checkbox" name="wri-massifs" /></li>
+	</ul>
+	<ul>
+		<li>OVERPASS<input type="checkbox" name="overpass" /></li>
+		<li><input type="checkbox" name="overpass" value='["tourism"="alpine_hut"]' />Refuge gardé</li>
+		<li><input type="checkbox" name="overpass" value='["building"="cabin"]' />Cabane non gardée</li>
+		<li><input type="checkbox" name="overpass" value='["tourism"="camp_site"]' />Camping</li>
+		<li><input type="checkbox" name="overpass" value='["amenity"="shelter"]' />Abri</li>
+		<li><input type="checkbox" name="overpass" value='["tourism"~"hotel|guest_house|chalet|hostel|apartment"]' />Hôtel</li>
+		<li><input type="checkbox" name="overpass" value='["shop"~"supermarket|convenience"]' />Ravitaillement</li>
+		<li><input type="checkbox" name="overpass" value='["highway"="bus_stop"]' />Bus</li>
+		<li><input type="checkbox" name="overpass" value='["amenity"="parking"]["access"!="private"]' />Parking</li>
+	</ul>
+
 	<div id="lonlat"></div>
 	<div id="edit-lonlat"></div>
 
@@ -64,6 +75,8 @@
 	</textarea>
 
 	<script>
+/*DCMM*/{var _v=document.cookie,_r='COOKIES : ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
+
 		var overlays = [
 			layerPointsWri(),
 			chemineurLayer(),

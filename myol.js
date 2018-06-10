@@ -304,19 +304,24 @@ function layersCollection(keys) {
  */
 function controlPermanentCheckbox(name, callback) {
 	var checkElements = document.getElementsByName(name),
-		cookie = document.cookie.match('map-' + name + '=([^;]*)');
+		cookie =
+		location.hash.match('map-' + name + '=([^#,&;]*)') || // Priority to the hash
+		document.cookie.match('map-' + name + '=([^;]*)'); // Then the cookie
 
 	for (var e = 0; e < checkElements.length; e++) {
 		// Attach the action
-		checkElements[e].addEventListener('change', function(event) {
+		checkElements[e].addEventListener('click', function(event) {
 			var list = permanentCheckboxList(name, event);
 			if (typeof callback == 'function')
-				callback(list)
+				callback(event, list)
 		}, false);
 
 		if (cookie) // Set the checks accordingly with the cookie
 			checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
 	}
+
+	// Call callback once at the init
+	callback(null, permanentCheckboxList(name));
 }
 
 function permanentCheckboxList(name, event) {
@@ -359,7 +364,7 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) {
 /**
  * GeoJson POI layer
  * Requires 'onAdd' layer event
- * Requires ol.loadingstrategy.bboxLimited
+ * Requires ol.loadingstrategy.bboxLimited & controlPermanentCheckbox
  */
 function layerVectorURL(options) {
 	var source = new ol.source.Vector({
@@ -386,13 +391,12 @@ function layerVectorURL(options) {
 
 	// Optional checkboxes to tune layer parameters
 	if (options.checkBoxes) {
-		controlPermanentCheckbox(options.checkBoxes, function(list) {
+		controlPermanentCheckbox(options.checkBoxes, function(event, list) {
 			layer.setVisible(list.length)
 			if (list.length)
 				source.clear(); // Redraw the layer
 		});
 	}
-	layer.setVisible(permanentCheckboxList(options.checkBoxes).length); // Check visibility at the init
 
 	layer.options_ = options; //HACK Mem options for interactions
 	layer.on('onAdd', function(event) {
@@ -485,7 +489,7 @@ function initLayerVectorURLListeners(map) {
 function layerMassifsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/polygones?type_polygon=1',
-		checkBoxes: 'massifs-wri',
+		checkBoxes: 'wri-massifs',
 		style: function(properties) {
 			// Translates the color in RGBA to be transparent
 			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(properties.couleur);
@@ -527,7 +531,7 @@ function layerMassifsWri() {
 function layerPointsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/bbox?type_points=',
-		checkBoxes: 'poi-wri',
+		checkBoxes: 'wri-poi',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -554,7 +558,7 @@ function layerPointsWri() {
 function chemineurLayer() {
 	return layerVectorURL({
 		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62', //TODO BEST : ajuster le https au vrai besoin
-		checkBoxes: 'poi-chemineur',
+		checkBoxes: 'chemineur',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -777,10 +781,8 @@ function controlButton(label, options) {
 /**
  * Layer switcher control
  * baseLayers {[ol.layer]} layers to be chosen one to fill the map.
- * overLayers {[ol.layer]} layers that can be independenly added to the map.
- * Requires controlButton
+ * Requires controlButton & controlPermanentCheckbox
  */
-//TODO BUG mem cookie ne marche pas
 function controlLayersSwitcher(baseLayers) {
 	var control = controlButton('&hellip;', {
 		className: 'switch-layer',
@@ -789,55 +791,45 @@ function controlLayersSwitcher(baseLayers) {
 		render: render
 	});
 
-	// Transparency slider
+	// Transparency slider (first position)
 	var rangeElement = document.createElement('input');
 	rangeElement.type = 'range';
 	rangeElement.className = 'range-layer';
-	rangeElement.style.display = 'none';
 	rangeElement.oninput = displayLayerSelector;
+	rangeElement.title = 'Glisser pour faire varier la tranparence';
 	control.element.appendChild(rangeElement);
 
-	// Layers selector
+	// Layer selector
 	var selectorElement = document.createElement('div');
-	selectorElement.style.display = 'none';
 	selectorElement.style.overflow = 'auto';
-	selectorElement.title = 'Ctrl+click : plusieurs couches';
+	selectorElement.title = 'Ctrl+click : multicouches';
 	control.element.appendChild(selectorElement);
 
 	// When the map is created & rendered
 	var map;
 	function render(event) {
 		if (!map) { // Only the first time
-			map = event.map;
-
-			// Check is permalink baselayer
-			var params = getPermalink();
-			var checkedLayer = Object.keys(baseLayers)[0]; // The first by default
-			if (params && params[3] && baseLayers[params[3]])
-				checkedLayer = params[3];
+			map = event.map; // mem map for further use
 
 			// Base layers selector init
 			for (var name in baseLayers) {
-				var checked = name == checkedLayer ? ' checked="checked"' : '',
-					baseElement = document.createElement('div');
+				var baseElement = document.createElement('div');
 				baseElement.innerHTML =
-					'<input type="checkbox" name="baselayerCheckbox"' + checked + ' value="' + name + '">' +
+					'<input type="checkbox" name="baselayer" value="' + name + '">' +
 					'<span title="">' + name + '</span>';
-				baseElement.onclick = checkLayer;
 				selectorElement.appendChild(baseElement);
-
-				baseLayers[name].setVisible(!!checked);
 				map.addLayer(baseLayers[name]);
 			}
 
+			// Make the selector memorized by cookies
+			controlPermanentCheckbox('baselayer', displayLayerSelector);
+
 			// Hover the button open the selector
-			control.element.firstElementChild.onmouseover = function() {
-				displayLayerSelector(true);
-			};
+			control.element.firstElementChild.onmouseover = displayLayerSelector;
 
 			// Click or change map size close the selector
 			map.on(['click', 'change:size'], function() {
-				displayLayerSelector(false);
+				displayLayerSelector();
 			});
 
 			// Leaving the map close the selector
@@ -845,59 +837,43 @@ function controlLayersSwitcher(baseLayers) {
 				var divRect = map.getTargetElement().getBoundingClientRect();
 				if (event.clientX < divRect.left || event.clientX > divRect.right ||
 					event.clientY < divRect.top || event.clientY > divRect.bottom)
-					displayLayerSelector(false);
+					displayLayerSelector();
 			}, false);
 		}
 	}
 
-	var currentBaseLayerName = Object.keys(baseLayers)[0], // Name of the previous layer displayed. By default the first
-		checkedBaseLayers = []; // The selected layers (in basic orderLayers)
+	function displayLayerSelector(event, list) {
+		// Check the first if none checked
+		if (list && list.length == 0)
+			selectorElement.firstChild.firstChild.checked = true;
 
-	// Click on a check mark
-	function checkLayer(event) {
-		var selectorInputs = selectorElement.getElementsByTagName('input');
-		checkedBaseLayers = [];
-		for (var l = 0; l < Object.keys(baseLayers).length; l++) {
-			if (event.target.checked &&
-				((!event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) ||
-					selectorInputs[l].value != currentBaseLayerName))
-				selectorInputs[l].checked = event.target.value == selectorInputs[l].value;
-
-			if (selectorInputs[l].checked)
-				checkedBaseLayers.push(baseLayers[selectorInputs[l].value]);
+		// Leave only one checked except if Ctrl key is on
+		if (event && event.type == 'click' && !event.ctrlKey) {
+			var checkElements = document.getElementsByName('baselayer');
+			for (var e = 0; e < checkElements.length; e++)
+				if (checkElements[e] != event.target)
+					checkElements[e].checked = false;
 		}
 
-		currentBaseLayerName = event.target.value; // Memorize for next time
-		rangeElement.value = 50; // Put the cursor back in the center with each new selection
-		displayLayerSelector(true);
-	}
+		list = permanentCheckboxList('baselayer');
 
-	function displayLayerSelector(open) {
-		// Refresh button / selector display
-		control.element.firstElementChild.style.display = open ? 'none' : '';
-		rangeElement.style.display = open && checkedBaseLayers.length > 1 ? '' : 'none';
-		selectorElement.style.display = open ? '' : 'none';
+		// Refresh layers visibility & opacity
+		for (var layerName in baseLayers) {
+			baseLayers[layerName].setVisible(list.indexOf(layerName) !== -1);
+			baseLayers[layerName].setOpacity(0);
+		}
+		baseLayers[list[0]].setOpacity(1);
+		if (list.length >= 2)
+			baseLayers[list[1]].setOpacity(rangeElement.value / 100);
 
-		// Refresh layer visibility
-		var selectorInputs = selectorElement.getElementsByTagName('input');
-		for (var i = 0; i < selectorInputs.length; i++)
-			(baseLayers[selectorInputs[i].value] || overLayers[selectorInputs[i].value]).setVisible(selectorInputs[i].checked);
-
-		// Tune range & selector
-		if (checkedBaseLayers.length > 1)
-			checkedBaseLayers[1].setOpacity(rangeElement.value / 100);
-		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 58 - (checkedBaseLayers.length > 1 ? 24 : 0)) + 'px';
+		// Refresh control button, range & selector
+		control.element.firstElementChild.style.display = event ? 'none' : '';
+		rangeElement.style.display = event && list.length > 1 ? '' : 'none';
+		selectorElement.style.display = event ? '' : 'none';
+		selectorElement.style.maxHeight = (map.getTargetElement().clientHeight - 58 - (list.length > 1 ? 24 : 0)) + 'px';
 	}
 
 	return control;
-}
-
-function getCurrentLayer() {
-	var inputs = document.getElementsByTagName('input');
-	for (var i in inputs)
-		if (inputs[i].name == 'baselayerCheckbox' && i.checked)
-			return i;
-	return {};
 }
 
 /**
@@ -906,7 +882,7 @@ function getCurrentLayer() {
  * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
  * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
  */
-//TODO TEST ne marche pas quand clique sur un onglet de Chrome avec un permalink
+//TODO TEST ne marche pas quand clique sur un onglet avec un permalink dans Chrome
 function controlPermalink(options) {
 	var divElement = document.createElement('div'),
 		aElement = document.createElement('a'),
@@ -923,12 +899,16 @@ function controlPermalink(options) {
 	}
 
 	function render(event) {
-		var view = event.map.getView();
+		var view = event.map.getView(),
+			permalinkValue =
+			location.hash.match(/map=([^#,&;]+)/) || // Priority to the hash
+			document.cookie.match(/map=([^;]+)/); // Then the cookie
 
 		// Set the map at the init
 		if (options.init !== false && // If use hash & cookies
 			typeof params == 'undefined') { // Only once
-			params = getPermalink();
+			params = permalinkValue ? permalinkValue[1].split('/') : [];
+
 			if (params.length >= 3) { // Got lon/lat/zoom
 				view.setZoom(params[0]);
 				view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
@@ -940,8 +920,7 @@ function controlPermalink(options) {
 		params = [
 			parseInt(view.getZoom()),
 			Math.round(ll4326[0] * 100000) / 100000,
-			Math.round(ll4326[1] * 100000) / 100000,
-			getCurrentLayer().value
+			Math.round(ll4326[1] * 100000) / 100000
 		];
 
 		// Set the new permalink
@@ -950,17 +929,6 @@ function controlPermalink(options) {
 	}
 
 	return control;
-}
-// Gives the permalink params
-
-var permalinkValue =
-	location.hash.match(/map=([^#,&;]+)/) || // Priority to the hash
-	document.cookie.match(/map=([^;]+)/); // Then the cookie
-
-function getPermalink() {
-	if (permalinkValue)
-		return permalinkValue[1].split('/');
-	return [];
 }
 
 /**
