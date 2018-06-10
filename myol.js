@@ -300,9 +300,53 @@ function layersCollection(keys) {
 // VECTORS, GEOJSON & AJAX LAYERS
 //***************************************************************
 /**
+ * Mem in cookies the checkbox content with name="name"
+ */
+function controlPermanentCheckbox(name, callback) {
+	var checkElements = document.getElementsByName(name),
+		cookie = document.cookie.match('map-' + name + '=([^;]*)');
+
+	for (var e = 0; e < checkElements.length; e++) {
+		// Attach the action
+		checkElements[e].addEventListener('change', function(event) {
+			var list = permanentCheckboxList(name, event);
+			if (typeof callback == 'function')
+				callback(list)
+		}, false);
+
+		if (cookie) // Set the checks accordingly with the cookie
+			checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
+	}
+}
+
+function permanentCheckboxList(name, event) {
+	var checkElements = document.getElementsByName(name),
+		allChecks = [];
+
+	for (var e = 0; e < checkElements.length; e++) {
+		// Select/deselect all (clicking an <input> without value)
+		if (event) {
+			if (event.target.value == 'on') // The Select/deselect has a default value = "on"
+				checkElements[e].checked = event.target.checked; // Check all if "all" is clicked
+			else if (checkElements[e].value == 'on')
+				checkElements[e].checked = false; // Reset the "all" checks if another check is clicked
+		}
+
+		// Get status of all checks
+		if (checkElements[e].checked) // List checked elements
+			allChecks.push(checkElements[e].id || checkElements[e].value);
+	}
+
+	// Mem in a cookie
+	document.cookie = 'map-' + name + '=' + allChecks.join(',') + ';path=/';
+
+	return allChecks; // Returns list of checked values or ids
+}
+
+/**
  * BBOX limited strategy
  * Same that bbox but reloads if we zoom in because we delivered more points when zoom in
- * return {ol.loadingstrategy} to be used in layer definition
+ * Returns {ol.loadingstrategy} to be used in layer definition
  */
 ol.loadingstrategy.bboxLimited = function(extent, resolution) {
 	if (this.resolution != resolution) // Force loading when zoom in
@@ -321,10 +365,13 @@ function layerVectorURL(options) {
 	var source = new ol.source.Vector({
 			strategy: ol.loadingstrategy.bboxLimited,
 			url: function(extent, resolution, projection) {
-				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326');
+				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326'),
+					list = permanentCheckboxList(options.checkBoxes).filter(function(e) {
+						return e !== 'on' // Remove the "all" input (default value = "on")
+					});
 				return typeof options.url == 'function' ?
-					options.url(bbox, checkChanged()) :
-					options.url + checkChanged().join(',') + '&bbox=' + bbox.join(',');
+					options.url(bbox, list) :
+					options.url + list.join(',') + '&bbox=' + bbox.join(','); // Default most common url
 			},
 			format: options.format || new ol.format.GeoJSON()
 		}),
@@ -339,44 +386,13 @@ function layerVectorURL(options) {
 
 	// Optional checkboxes to tune layer parameters
 	if (options.checkBoxes) {
-		var checkElements = document.getElementsByName(options.checkBoxes),
-			cookie = document.cookie.match('map-' + options.checkBoxes + '=([^;]+)');
-
-		for (var e = 0; e < checkElements.length; e++) {
-			if (cookie) // Init the checks according to the cookie
-				checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
-
-			// Attach the action
-			checkElements[e].addEventListener('change', checkChanged, false);
-		}
+		controlPermanentCheckbox(options.checkBoxes, function(list) {
+			layer.setVisible(list.length)
+			if (list.length)
+				source.clear(); // Redraw the layer
+		});
 	}
-
-	// Refresh layer when selection change
-	function checkChanged(event) {
-		var allChecks = [];
-		if (options.checkBoxes) {
-			// Select/deselect all
-			if (event && event.target.value == 'on') // The Select/deselect all is an <input> without name
-				for (var e = 0; e < checkElements.length; e++)
-					checkElements[e].checked = event.target.checked;
-
-			// Get status of all checks
-			for (var e = 0; e < checkElements.length; e++)
-				if (checkElements[e].checked)
-					allChecks.push(checkElements[e].id || checkElements[e].value);
-			document.cookie = 'map-' + options.checkBoxes + '=' + allChecks.join(',') + ';path=/'; // Mem in a cookie
-			var numChecks = allChecks.filter(function(e) {
-				return e !== 'on'
-			}); // Remove the "all" input (default value = "on")
-			layer.setVisible(
-				numChecks.length || // Desactivate the layer when no params selected
-				(event && event.target.value == 'on' && event.target.checked) || // All params unchecked
-				(allChecks.length && checkElements.length) // No params (only "all" check)
-			);
-			source.clear(); // Redraw the layer
-		}
-		return numChecks;
-	}
+	layer.setVisible(permanentCheckboxList(options.checkBoxes).length); // Check visibility at the init
 
 	layer.options_ = options; //HACK Mem options for interactions
 	layer.on('onAdd', function(event) {
