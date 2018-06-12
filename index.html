@@ -47,15 +47,15 @@
 		<li>MASSIFS<input type="checkbox" name="wri-massifs" /></li>
 	</ul>
 	<ul>
-		<li>OVERPASS<input type="checkbox" name="overpass" /></li>
-		<li><input type="checkbox" name="overpass" value='["tourism"="alpine_hut"]' />Refuge gardé</li>
-		<li><input type="checkbox" name="overpass" value='["building"="cabin"]' />Cabane non gardée</li>
-		<li><input type="checkbox" name="overpass" value='["tourism"="camp_site"]' />Camping</li>
-		<li><input type="checkbox" name="overpass" value='["amenity"="shelter"]' />Abri</li>
-		<li><input type="checkbox" name="overpass" value='["tourism"~"hotel|guest_house|chalet|hostel|apartment"]' />Hôtel</li>
-		<li><input type="checkbox" name="overpass" value='["shop"~"supermarket|convenience"]' />Ravitaillement</li>
-		<li><input type="checkbox" name="overpass" value='["highway"="bus_stop"]' />Bus</li>
-		<li><input type="checkbox" name="overpass" value='["amenity"="parking"]["access"!="private"]' />Parking</li>
+		<li>OVERPASS<input type="checkbox" name="overpass" checked="checked" /></li>
+		<li><input type="checkbox" name="overpass" id="refuge-garde" value='["tourism"="alpine_hut"]' />Refuge gardé</li>
+		<li><input type="checkbox" name="overpass" id="cabane-non-gardee" value='["building"="cabin"]' />Cabane non gardée</li>
+		<li><input type="checkbox" name="overpass" id="camping" value='["tourism"="camp_site"]' />Camping</li>
+		<li><input type="checkbox" name="overpass" id="abri" value='["amenity"="shelter"]' />Abri</li>
+		<li><input type="checkbox" checked="checked" name="overpass" id="hotel" value='["tourism"~"hotel|guest_house|chalet|hostel|apartment"]' />Hôtel</li>
+		<li><input type="checkbox" name="overpass" id="ravitaillement" value='["shop"~"supermarket|convenience"]' />Ravitaillement</li>
+		<li><input type="checkbox" name="overpass" id="bus" value='["highway"="bus_stop"]' />Bus</li>
+		<li><input type="checkbox" name="overpass" id="parking" value='["amenity"="parking"]["access"!="private"]' />Parking</li>
 	</ul>
 
 	<div id="lonlat"></div>
@@ -78,14 +78,14 @@
 /*DCMM*/{var _v=document.cookie,_r='COOKIES : ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 
 		var overlays = [
-			layerPointsWri(),
-			chemineurLayer(),
-			layerMassifsWri()
-/*			layerOverpass({
-			url: 'https://overpass-api.de/api/interpreter',
-			features: '"tourism"~"hotel|guest_house|chalet|hostel|apartment"'
-		})*/
-		],
+//				layerPointsWri(),
+//				chemineurLayer(),
+//				layerMassifsWri()
+				layerOverpass({
+					url: '//overpass-api.de/api/interpreter',
+					selector: 'overpass'
+				})
+			],
 			map = new ol.Map({
 				target: 'map',
 				//	loadTilesWhileInteracting: true,
@@ -99,11 +99,11 @@
 					//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
 					zoom: 8
 				}),
-				layers:overlays
+				layers: overlays
 			}),
 			layers = layersCollection({
 				IGN: 'o6owv8ubhn3vbz2uj8jq5j0z', // localhost
-				//	IGN: 'hcxdz5f1p9emo4i1lch6ennl', // chemineur.fr
+				//IGN: 'hcxdz5f1p9emo4i1lch6ennl', // chemineur.fr
 				thunderforest: 'a54d38a8b23f435fa08cfb1d0d0b266e', // https://manage.thunderforest.com
 				bing: 'ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt',
 			});
@@ -111,32 +111,28 @@
 		map.addControl(controlLayersSwitcher(layers));
 		map.addLayer(marqueur(
 			'data:image/svg+xml;utf8,' +
-				'<svg xmlns="http://www.w3.org/2000/svg" width="31" height="43" ' +
-				'style="stroke-width:4;stroke:rgb(255,0,0,.5);fill:rgb(0,0,0,0)">' +
-				'<rect width="31" height="43" />' +
-				'</svg>',
-			[-.575, 44.845],
-			'lonlat',
-			['Lon {0}, Lat {1}', '<br/>X {2}, Y {3} (CH1903)']
+			'<svg xmlns="http://www.w3.org/2000/svg" width="31" height="43" ' +
+			'style="stroke-width:4;stroke:rgb(255,0,0,.5);fill:rgb(0,0,0,0)">' +
+			'<rect width="31" height="43" />' +
+			'</svg>', [-.575, 44.845],
+			'lonlat', ['Lon {0}, Lat {1}', '<br/>X {2}, Y {3} (CH1903)']
 		));
 		map.addLayer(marqueur(
 			'data:image/svg+xml;utf8,' +
-				'<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" ' +
-				'style="stroke-width:3;stroke:rgb(255,208,0);fill:rgb(0,0,0,0)">' +
-				'<circle cx="15" cy="15" r="13.5" />' +
-				'<line x1="15" y1="0" x2="15" y2="30" />' +
-				'<line x1="0" y1="15" x2="30" y2="15" />' +
-				'</svg>',
-			[6.15, 46.2],
-			'edit-lonlat',
-			[
+			'<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" ' +
+			'style="stroke-width:3;stroke:rgb(255,208,0);fill:rgb(0,0,0,0)">' +
+			'<circle cx="15" cy="15" r="13.5" />' +
+			'<line x1="15" y1="0" x2="15" y2="30" />' +
+			'<line x1="0" y1="15" x2="30" y2="15" />' +
+			'</svg>', [6.15, 46.2],
+			'edit-lonlat', [
 				'Lon <input type="text" onchange="viseur.edit(this,0,4326)" size="12" maxlength="12" value="{0}"/>' +
 				'<br/>Lat <input type="text" onchange="viseur.edit(this,1,4326)" size="12" maxlength="12" value="{1}"/>',
 				'<br/>X <input type="text" onchange="viseur.edit(this,0,21781)" size="12" maxlength="12" value="{2}"/>' +
 				'<br/>Y <input type="text" onchange="viseur.edit(this,1,21781)" size="12" maxlength="12" value="{3}"/>'
 			],
 			'edit'));
-		map.addControl(controlLineEditor('geojson'), overlays);
+//		map.addControl(controlLineEditor('geojson'), overlays);
 	</script>
 </body>
 </html>

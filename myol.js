@@ -324,6 +324,7 @@ function controlPermanentCheckbox(name, callback) {
 	callback(null, permanentCheckboxList(name));
 }
 
+//TODO : en faire un vrai controle et inclure cette fonction
 function permanentCheckboxList(name, event) {
 	var checkElements = document.getElementsByName(name),
 		allChecks = [];
@@ -339,7 +340,7 @@ function permanentCheckboxList(name, event) {
 
 		// Get status of all checks
 		if (checkElements[e].checked) // List checked elements
-			allChecks.push(checkElements[e].id || checkElements[e].value);
+			allChecks.push(checkElements[e].value);
 	}
 
 	// Mem in a cookie
@@ -371,7 +372,7 @@ function layerVectorURL(options) {
 			strategy: ol.loadingstrategy.bboxLimited,
 			url: function(extent, resolution, projection) {
 				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326'),
-					list = permanentCheckboxList(options.checkBoxes).filter(function(e) {
+					list = permanentCheckboxList(options.selector).filter(function(e) {
 						return e !== 'on' // Remove the "all" input (default value = "on")
 					});
 				return typeof options.url == 'function' ?
@@ -390,8 +391,8 @@ function layerVectorURL(options) {
 		});
 
 	// Optional checkboxes to tune layer parameters
-	if (options.checkBoxes) {
-		controlPermanentCheckbox(options.checkBoxes, function(event, list) {
+	if (options.selector) {
+		controlPermanentCheckbox(options.selector, function(event, list) {
 			layer.setVisible(list.length)
 			if (list.length)
 				source.clear(); // Redraw the layer
@@ -401,6 +402,7 @@ function layerVectorURL(options) {
 	layer.options_ = options; //HACK Mem options for interactions
 	layer.on('onAdd', function(event) {
 		var map = event.map;
+		initLayerVectorURLListeners(map);
 
 		// Hover activity (coloring the feature)
 		if (typeof options.hover == 'function')
@@ -412,8 +414,6 @@ function layerVectorURL(options) {
 					return new ol.style.Style(options.hover(feature.getProperties()));
 				}
 			}));
-
-		initLayerVectorURLListeners(map);
 	});
 
 	return layer;
@@ -489,7 +489,7 @@ function initLayerVectorURLListeners(map) {
 function layerMassifsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/polygones?type_polygon=1',
-		checkBoxes: 'wri-massifs',
+		selector: 'wri-massifs',
 		style: function(properties) {
 			// Translates the color in RGBA to be transparent
 			var cs = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(properties.couleur);
@@ -528,10 +528,11 @@ function layerMassifsWri() {
  * www.refuges.info POI layer
  * Requires layerVectorURL
  */
+//TODO option selector
 function layerPointsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/bbox?type_points=',
-		checkBoxes: 'wri-poi',
+		selector: 'wri-poi',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -558,7 +559,7 @@ function layerPointsWri() {
 function chemineurLayer() {
 	return layerVectorURL({
 		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62', //TODO BEST : ajuster le https au vrai besoin
-		checkBoxes: 'chemineur',
+		selector: 'chemineur',
 		style: function(properties) {
 			return {
 				image: new ol.style.Icon({
@@ -579,15 +580,13 @@ function chemineurLayer() {
 }
 
 /**
- * OSM overpass poi layer
- * From: https://openlayers.org/en/latest/examples/vector-osm.html
- * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
- * Requires layerVectorURL
+ * Feature format for reading data in the OSMXML format
+ * Convert areas into points to display it as an icon
  */
-function layerOverpass(options) {
-	var format = new ol.format.OSMXML();
-	// Convert areas in points when receive the features
-	format.readFeatures = function(source, opt_options) {
+ol.format.OSMXMLPOI = function() {
+	ol.format.OSMXML.call(this);
+
+	this.readFeatures = function(source, opt_options) {
 		for (var node = source.documentElement.firstChild; node; node = node.nextSibling)
 			if (node.nodeName == 'way') {
 				var newNode = source.createElement('node');
@@ -605,45 +604,56 @@ function layerOverpass(options) {
 			}
 		return ol.format.XMLFeature.prototype.readFeatures.call(this, source, opt_options);
 	}
-
-/*
-request = request || { // Default selection
-	// icon_name: '[overpass selection]'
-	ravitaillement: '["shop"~"supermarket|convenience"]',
-	bus: '["highway"="bus_stop"]',
-	parking: '["amenity"="parking"]["access"!="private"]',
-	camping: '["tourism"="camp_site"]',
-	'refuge-garde': '["tourism"="alpine_hut"]',
-	'cabane-non-gardee': '["building"="cabin"]',
-	abri: '["amenity"="shelter"]',
-	hotel: '["tourism"~"hotel|guest_house|chalet|hostel|apartment"]',
 };
+ol.inherits(ol.format.OSMXMLPOI, ol.format.OSMXML);
 
-http://overpass-api.de/api/interpreter?data=[out:json][timeout:5];(
-node["tourism"~"hotel|guest_house|chalet|hostel|apartment"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
-way["tourism"~"hotel|guest_house|chalet|hostel|apartment"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
-node["tourism"~"camp_site"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
-way["tourism"~"camp_site"](46.2316280132321,6.358337402343751,46.42720895583364,6.725349426269531);
-);out center;>;&bbox=6.358337402343751,46.2316280132321,6.725349426269531,46.42720895583364"
-*/
-
-	return layerVectorURL({
+/**
+ * OSM overpass poi layer
+ * From: https://openlayers.org/en/latest/examples/vector-osm.html
+ * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
+ * Requires layerVectorURL
+ */
+//TODO BUG pas de label
+//TODO label clicables
+function layerOverpass(options) {
+	var checkElements;
+	var layer = layerVectorURL({
 		url: function(bbox) {
-			var bb = bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2];
+			var bb = '(' + bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2] + ');';
+
+			var list = permanentCheckboxList(options.selector).filter(function(e) {
+					return e !== 'on' // Remove the "all" input (default value = "on")
+				}),
+				args = [];
+
+			for (var l = 0; l < list.length; l++)
+				args.push(
+					'node' + list[l] + bb + // Ask for nodes in the bbox
+					'way' + list[l] + bb // Also ask for areas
+				);
+
 			return options.url +
 				'?data=[timeout:5];(' + // Not too much !
-				'node[' + options.features + '](' + bb + ');' + // Ask for nodes in the bbox
-				'way[' + options.features + '](' + bb + ');' + // Ask also areas
+				args.join('') +
 				');out center;'; // add center of areas
 		},
-		format: format,
+		format: new ol.format.OSMXMLPOI(),
+		selector: options.selector,
 		style: function(properties) {
-/*DCMM*/{var _v=properties,_r='';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
-			return {
-				image: new ol.style.Icon({
-					src: '//www.refuges.info/images/icones/abri.png'
-				})
-			};
+			if (!checkElements) //Once
+				checkElements = document.getElementsByName(options.selector);
+
+			for (var p in properties)
+				if (typeof properties[p] == 'string' &&
+					properties[p].match('^[a-zA-Z0-9_]*$')) {
+					for (var e = 0; e < checkElements.length; e++)
+						if (checkElements[e].value.match(p + '.*' + properties[p]))
+							return {
+								image: new ol.style.Icon({
+									src: '//www.refuges.info/images/icones/' + checkElements[e].id + '.png'
+								})
+							};
+				}
 		},
 		label: function(properties) {
 			return {
@@ -651,6 +661,8 @@ way["tourism"~"camp_site"](46.2316280132321,6.358337402343751,46.42720895583364,
 			};
 		}
 	});
+
+	return layer;
 }
 
 /**
@@ -883,6 +895,7 @@ function controlLayersSwitcher(baseLayers) {
  * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
  */
 //TODO TEST ne marche pas quand clique sur un onglet avec un permalink dans Chrome
+//TODO BUG appelle 2 fois la couche avec 2 définitions différentes à cause du cookie permalink
 function controlPermalink(options) {
 	var divElement = document.createElement('div'),
 		aElement = document.createElement('a'),
