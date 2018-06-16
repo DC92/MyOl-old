@@ -8,12 +8,14 @@
 //TODO END check , à la fin des tablos : http://jshint.com/
 
 /**
- * HACK send 'onAdd' event to layers when added to a map
+ * HACK send 'render' event to layers that wants to know their maps map
  */
-ol.Map.prototype.addLayer = function(layer) { // Overwrites ol.Map.addLayer
-	ol.PluggableMap.prototype.addLayer.call(this, layer); // Call former method (as ol.Map hasn't addLayer)
+ol.Map.prototype.renderFrame_ = function(time) {
+	var layers = this.getLayerGroup().getLayerStatesArray();
+	for (i = 0, ii = layers.length; i < ii; ++i)
+		layers[i].layer.dispatchEvent(new ol.MapEvent('render', this));
 
-	layer.dispatchEvent(new ol.MapEvent('onAdd', this));
+	ol.PluggableMap.prototype.renderFrame_.call(this, time);
 };
 
 //***************************************************************
@@ -118,7 +120,7 @@ function layerIGN(key, layer, format) {
  * Virtual class
  * Displays OSM outside the zoom area, 
  * Displays blank outside the area of validity
- * Requires 'onAdd' layer event
+ * Requires 'render' layer event
  */
 function layerTileIncomplete(extent, sources) {
 	var layer = new ol.layer.Tile(),
@@ -126,7 +128,7 @@ function layerTileIncomplete(extent, sources) {
 		backgroundSource = new ol.source.Stamen({
 			layer: 'terrain'
 		});
-	layer.on('onAdd', function(e) {
+	layer.once('render', function(e) {
 		map = e.map
 		view = map.getView();
 		view.on('change', change);
@@ -364,7 +366,7 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) {
 //TODO BEST écarteur de pictos trop proches
 /**
  * GeoJson POI layer
- * Requires 'onAdd' layer event
+ * Requires 'render' layer event
  * Requires ol.loadingstrategy.bboxLimited & controlPermanentCheckbox
  */
 function layerVectorURL(options) {
@@ -400,7 +402,7 @@ function layerVectorURL(options) {
 	}
 
 	layer.options_ = options; //HACK Mem options for interactions
-	layer.on('onAdd', function(event) {
+	layer.once('render', function(event) {
 		var map = event.map;
 		initLayerVectorURLListeners(map);
 
@@ -668,7 +670,7 @@ function layerOverpass(options) {
 /**
  * Marqueurs
  * Requires proj4.js for swiss coordinates
- * Requires 'onAdd' layer event
+ * Requires 'render' layer event
  */
 function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, lat], 'id-display', ['format de base', 'format suisse']
 	var point = new ol.geom.Point(
@@ -690,7 +692,7 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 			style: iconStyle,
 			zIndex: 2
 		});
-	layer.on('onAdd', function(e) {
+	layer.once('render', function(e) {
 		if (edit) {
 			// Drag and drop
 			e.map.addInteraction(new ol.interaction.Modify({
