@@ -423,52 +423,66 @@ function layerVectorURL(options) {
 
 // We use only one listener for hover and one for click for all vector layers
 function initLayerVectorURLListeners(map) {
-	if (!map.popElement) { // Only once for all layers
+	if (!map.popElement_) { //HACK Only once for all layers
 
 		// Display a label when hover the feature
-		map.popElement = document.createElement('div');
+		map.popElement_ = document.createElement('div');
 		var popup = new ol.Overlay({
-			element: map.popElement
+			element: map.popElement_
 		});
 		map.addOverlay(popup);
 
-		map.on('pointermove', function(event) {
+		var event;
+		map.on('pointermove', function(e) {
+			event = e; // Mem the event for callback functions
+
+			// Reset cursor & popup position
 			map.getViewport().style.cursor = 'default'; // To get the default cursor if there is no feature here
-			popup.setPosition(undefined); // Hide label by default if none feature here
+
+			var mapRect = map.getTargetElement().getBoundingClientRect(),
+				popupRect = map.popElement_.getBoundingClientRect();
+			if (popupRect.left - 5 > mapRect.x + event.pixel[0] || mapRect.x + event.pixel[0] >= popupRect.right + 5 ||
+				popupRect.top - 5 > mapRect.y + event.pixel[1] || mapRect.y + event.pixel[1] >= popupRect.bottom + 5)
+				popup.setPosition(undefined); // Hide label by default if none feature or his popup here
 
 			// Search the hovered the feature(s)
 			map.forEachFeatureAtPixel(event.pixel, checkFeatureAtPixelHovered);
 		});
 
 		function checkFeatureAtPixelHovered(feature_, layer_) {
-			if (!popup.getPosition() && // Only for the top one
+			// Feature's icons
+			if (!popup.getPosition() && // Only for the first one
 				layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
 				var properties_ = layer_.options_.label(feature_.getProperties());
-				map.popElement.innerHTML = properties_.text; // Set the label inner
-				map.popElement.className = 'popup ' + (properties_.className || '');
-				// Garder pour doc !!! var t = layer_.getStyleFunction()(feature_).getText();
+				map.popElement_.innerHTML = properties_.text; // Set the label inner
+				map.popElement_.className = 'popup ' + (properties_.className || '');
 
-				// Now, what anchor for the label () ?
+				// Now, calculate the anchor for the label
 				var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
 				if (coordinates_.length != 2)
 					coordinates_ = event.coordinate; // If it's a surface, over the pointer
-				popup.setPosition(map.getView().getCenter()); // For popup size calculation
+				popup.setPosition(map.getView().getCenter()); // For popup size adjustment
 
 				// Well calculated shift of the label regarding the pointer position
-				var pixel = map.getPixelFromCoordinate(coordinates_); //TODO BUG : ne marche pas sur un massif !!!
-				if (pixel[1] < map.popElement.clientHeight + 12) { // On the top of the map (not enough space for it)
-					pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement.clientWidth - 10;
+				var pixel = map.getPixelFromCoordinate(coordinates_);
+				if (pixel[1] < map.popElement_.clientHeight + 12) { // On the top of the map (not enough space for it)
+					pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement_.clientWidth - 10;
 					pixel[1] += 2 - pixel[1];
 				} else {
-					pixel[0] -= map.popElement.clientWidth * pixel[0] / map.getSize()[0];
-					pixel[1] -= map.popElement.clientHeight + 10;
+					pixel[0] -= map.popElement_.clientWidth * pixel[0] / map.getSize()[0];
+					pixel[1] -= map.popElement_.clientHeight + 10;
 				}
 				popup.setPosition(map.getCoordinateFromPixel(pixel));
 			}
+
+			// Hover a clikable feature
 			if (layer_ && layer_.options_ && layer_.options_.click)
 				map.getViewport().style.cursor = 'pointer';
+
+			return true; // Stop detection
 		}
 
+//TODO BUG click sur un feature non clicable le transforme en point !!
 		// Click on feature
 		map.on('click', function(event) {
 			// Search the clicked the feature(s)
@@ -514,6 +528,7 @@ function layerMassifsWri() {
 				fill: new ol.style.Fill({
 					color: properties.couleur
 				}),
+//TODO BUG click superpose avec le style hover (bord bleu)
 				stroke: new ol.style.Stroke({
 					color: 'black'
 				})
@@ -530,7 +545,6 @@ function layerMassifsWri() {
  * www.refuges.info POI layer
  * Requires layerVectorURL
  */
-//TODO option selector
 function layerPointsWri() {
 	return layerVectorURL({
 		url: '//www.refuges.info/api/bbox?type_points=',
@@ -615,7 +629,6 @@ ol.inherits(ol.format.OSMXMLPOI, ol.format.OSMXML);
  * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
  * Requires layerVectorURL
  */
-//TODO BUG pas de label
 //TODO label clicables
 function layerOverpass(options) {
 	var checkElements;
@@ -1212,7 +1225,7 @@ function controlsCollection() {
 		controlGPS(),
 		controlLoadGPX(),
 		controlDownloadGPX(),
-		//TODO impression full format page -> CSS
+//TODO impression full format page -> CSS
 		controlButton('&equiv;', {
 			title: 'Imprimer la carte',
 			action: function() {

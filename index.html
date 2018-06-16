@@ -77,14 +77,15 @@
 	<script>
 /*DCMM*/{var _v=document.cookie,_r='COOKIES : ';if(typeof _v=='array'||typeof _v=='object'){for(_i in _v)if(typeof _v[_i]!='function')_r+=_i+'='+typeof _v[_i]+' '+_v[_i]+' '+(_v[_i]&&_v[_i].CLASS_NAME?'('+_v[_i].CLASS_NAME+')':'')+"\n"}else _r+=_v;console.log(_r)}
 
-		var overlays = [
+		var overpass = layerOverpass({
+				url: '//overpass-api.de/api/interpreter',
+				selector: 'overpass'
+			}),
+			overlays = [
 //				layerPointsWri(),
 //				chemineurLayer(),
-//				layerMassifsWri()
-				layerOverpass({
-					url: '//overpass-api.de/api/interpreter',
-					selector: 'overpass'
-				})
+//				layerMassifsWri(),
+				overpass,
 			],
 			map = new ol.Map({
 				target: 'map',

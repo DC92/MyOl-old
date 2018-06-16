@@ -109,21 +109,6 @@
   }
 }*/
 
-/* Overpass */
-.overpass-popup{
-	background-color: #def;
-	padding: 5px;
-	border-radius: 5px;
-	border: 1px solid #abc;
-}
-.overpass-popup p{
-	font-size: small;
-	margin: 0;
-}
-.overpass-popup p:first-letter {
-    text-transform: uppercase;
-}
-
 /* Switch layer */
 .switch-layer {
 	font-size: small;
@@ -152,6 +137,19 @@
 	display: none;
 }
 
+/* Permalink */
+.ol-permalink {
+	position: absolute;
+	bottom: 24px;
+	right: 0;
+	padding: 3px;
+	background-color: rgba(255, 255, 255, 0.8);
+	border-top-left-radius: 4px;
+	border-bottom-left-radius: 4px;
+	font-size: .7rem;
+	line-height: 1.375em;
+}
+
 /* Features popup */
 .popup {
 	padding: 1px 4px;
@@ -164,15 +162,17 @@
 	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
 }
 
-/* Permalink */
-.ol-permalink {
-	position: absolute;
-	bottom: 24px;
-	right: 0;
-	padding: 3px;
-	background-color: rgba(255, 255, 255, 0.8);
-	border-top-left-radius: 4px;
-	border-bottom-left-radius: 4px;
-	font-size: .7rem;
-	line-height: 1.375em;
+/* Overpass */
+.overpass-popup{
+	background-color: #def;
+	padding: 5px;
+	border-radius: 5px;
+	border: 1px solid #abc;
+}
+.overpass-popup p{
+	font-size: small;
+	margin: 0;
+}
+.overpass-popup p:first-letter {
+    text-transform: uppercase;
 }
