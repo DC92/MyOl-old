@@ -48,8 +48,8 @@
 	</ul>
 	<ul>
 		<li>OVERPASS<input type="checkbox" name="overpass" checked="checked" /></li>
-		<li><input type="checkbox" name="overpass" id="refuge-garde" value='["tourism"="alpine_hut"]' />Refuge gardé</li>
-		<li><input type="checkbox" name="overpass" id="cabane-non-gardee" value='["building"="cabin"]' />Cabane non gardée</li>
+		<li><input type="checkbox" name="overpass" id="refuge" value='["tourism"="alpine_hut"]' />Refuge gardé</li>
+		<li><input type="checkbox" name="overpass" id="cabane" value='["building"="cabin"]' />Cabane non gardée</li>
 		<li><input type="checkbox" name="overpass" id="camping" value='["tourism"="camp_site"]' />Camping</li>
 		<li><input type="checkbox" name="overpass" id="abri" value='["amenity"="shelter"]' />Abri</li>
 		<li><input type="checkbox" checked="checked" name="overpass" id="hotel" value='["tourism"~"hotel|guest_house|chalet|hostel|apartment"]' />Hôtel</li>
@@ -79,7 +79,10 @@
 
 		var overpass = layerOverpass({
 				url: '//overpass-api.de/api/interpreter',
-				selector: 'overpass'
+				selector: 'overpass',
+				label: function(p){
+					return 'TEST';
+				}
 			}),
 			overlays = [
 //				layerPointsWri(),
@@ -91,7 +94,7 @@
 				target: 'map',
 				//	loadTilesWhileInteracting: true,
 				controls: controlsCollection(),
-				view: new ol.View({
+/*				view: new ol.View({
 					center: ol.proj.fromLonLat([-4, 48]), // Bretagne
 					//center: ol.proj.fromLonLat([-3.5, 48.25]), // France
 					//center: ol.proj.fromLonLat([7, 47]), // Suisse
@@ -99,7 +102,7 @@
 					//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
 					//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
 					zoom: 8
-				}),
+				}),*/
 				layers: overlays
 			}),
 			layers = layersCollection({

@@ -77,6 +77,9 @@
 	width: 1.375em;
 	height: 1.375em;
 }
+.ol-geocoder .gcd-gl-input {
+	top: 0;
+}
 
 /* Full screen */
 .ol-full-screen {
@@ -160,6 +163,9 @@
 	-webkit-box-shadow: 0 3px 8px #999;
 	font-size: 12px;
 	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+.popup p {
+	margin: 0;
 }
 
 /* Overpass */

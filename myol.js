@@ -12,7 +12,7 @@
  */
 ol.Map.prototype.renderFrame_ = function(time) {
 	var layers = this.getLayerGroup().getLayerStatesArray();
-	for (i = 0, ii = layers.length; i < ii; ++i)
+	for (var i = 0, ii = layers.length; i < ii; ++i)
 		layers[i].layer.dispatchEvent(new ol.MapEvent('render', this));
 
 	ol.PluggableMap.prototype.renderFrame_.call(this, time);
@@ -124,12 +124,13 @@ function layerIGN(key, layer, format) {
  */
 function layerTileIncomplete(extent, sources) {
 	var layer = new ol.layer.Tile(),
-		map, view,
+		map,
+		view,
 		backgroundSource = new ol.source.Stamen({
 			layer: 'terrain'
 		});
-	layer.once('render', function(e) {
-		map = e.map
+	layer.once('render', function(e) {//TODO BEST Remplacer par 'onAdd'
+		map = e.map;
 		view = map.getView();
 		view.on('change', change);
 		change(); // At init
@@ -304,6 +305,7 @@ function layersCollection(keys) {
 /**
  * Mem in cookies the checkbox content with name="name"
  */
+//TODO : en faire un vrai controle et inclure cette fonction
 function controlPermanentCheckbox(name, callback) {
 	var checkElements = document.getElementsByName(name),
 		cookie =
@@ -326,7 +328,6 @@ function controlPermanentCheckbox(name, callback) {
 	callback(null, permanentCheckboxList(name));
 }
 
-//TODO : en faire un vrai controle et inclure cette fonction
 function permanentCheckboxList(name, event) {
 	var checkElements = document.getElementsByName(name),
 		allChecks = [];
@@ -356,7 +357,7 @@ function permanentCheckboxList(name, event) {
  * Same that bbox but reloads if we zoom in because we delivered more points when zoom in
  * Returns {ol.loadingstrategy} to be used in layer definition
  */
-ol.loadingstrategy.bboxLimited = function(extent, resolution) {
+ol.loadingstrategy.bboxDependant = function(extent, resolution) {
 	if (this.resolution != resolution) // Force loading when zoom in
 		this.clear();
 	this.resolution = resolution; // Mem resolution for further requests
@@ -367,11 +368,11 @@ ol.loadingstrategy.bboxLimited = function(extent, resolution) {
 /**
  * GeoJson POI layer
  * Requires 'render' layer event
- * Requires ol.loadingstrategy.bboxLimited & controlPermanentCheckbox
+ * Requires ol.loadingstrategy.bboxDependant & controlPermanentCheckbox
  */
 function layerVectorURL(options) {
 	var source = new ol.source.Vector({
-			strategy: ol.loadingstrategy.bboxLimited,
+			strategy: ol.loadingstrategy.bboxDependant,
 			url: function(extent, resolution, projection) {
 				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326'),
 					list = permanentCheckboxList(options.selector).filter(function(e) {
@@ -453,7 +454,7 @@ function initLayerVectorURLListeners(map) {
 			// Feature's icons
 			if (!popup.getPosition() && // Only for the first one
 				layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
-				var properties_ = layer_.options_.label(feature_.getProperties());
+				var properties_ = layer_.options_.label(feature_.getProperties(), feature_, layer_);
 				map.popElement_.innerHTML = properties_.text; // Set the label inner
 				map.popElement_.className = 'popup ' + (properties_.className || '');
 
@@ -574,7 +575,8 @@ function layerPointsWri() {
  */
 function chemineurLayer() {
 	return layerVectorURL({
-		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62', //TODO BEST : ajuster le https au vrai besoin
+		//TODO BEST : ajuster le https au vrai besoin
+		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
 		selector: 'chemineur',
 		style: function(properties) {
 			return {
@@ -605,14 +607,23 @@ ol.format.OSMXMLPOI = function() {
 	this.readFeatures = function(source, opt_options) {
 		for (var node = source.documentElement.firstChild; node; node = node.nextSibling)
 			if (node.nodeName == 'way') {
+				// Create a new 'node' element centered on the surface
 				var newNode = source.createElement('node');
 				source.documentElement.appendChild(newNode);
 				newNode.id = node.id;
+
+				// Add a tag to mem what node type it was
+				var newTag = source.createElement('tag');
+				newTag.setAttribute('k', 'nodetype');
+				newTag.setAttribute('v', 'way');
+				newNode.appendChild(newTag);
+
 				for (var subTagNode = node.firstChild; subTagNode; subTagNode = subTagNode.nextSibling)
 					switch (subTagNode.nodeName) {
 						case 'center':
 							newNode.setAttribute('lon', subTagNode.getAttribute('lon'));
 							newNode.setAttribute('lat', subTagNode.getAttribute('lat'));
+							newNode.setAttribute('nodeName', subTagNode.nodeName);
 							break;
 						case 'tag':
 							newNode.appendChild(subTagNode.cloneNode());
@@ -629,14 +640,11 @@ ol.inherits(ol.format.OSMXMLPOI, ol.format.OSMXML);
  * Doc: http://wiki.openstreetmap.org/wiki/Overpass_API/Language_Guide
  * Requires layerVectorURL
  */
-//TODO label clicables
 function layerOverpass(options) {
-	var checkElements;
-	var layer = layerVectorURL({
+	return layerVectorURL({
 		url: function(bbox) {
-			var bb = '(' + bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2] + ');';
-
-			var list = permanentCheckboxList(options.selector).filter(function(e) {
+			var bb = '(' + bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2] + ');',
+				list = permanentCheckboxList(options.selector).filter(function(e) {
 					return e !== 'on' // Remove the "all" input (default value = "on")
 				}),
 				args = [];
@@ -655,30 +663,74 @@ function layerOverpass(options) {
 		format: new ol.format.OSMXMLPOI(),
 		selector: options.selector,
 		style: function(properties) {
-			if (!checkElements) //Once
-				checkElements = document.getElementsByName(options.selector);
-
-			for (var p in properties)
-				if (typeof properties[p] == 'string' &&
-					properties[p].match('^[a-zA-Z0-9_]*$')) {
-					for (var e = 0; e < checkElements.length; e++)
-						if (checkElements[e].value.match(p + '.*' + properties[p]))
-							return {
-								image: new ol.style.Icon({
-									src: '//www.refuges.info/images/icones/' + checkElements[e].id + '.png'
-								})
-							};
-				}
-		},
-		label: function(properties) {
 			return {
-				text: properties.name
+				image: new ol.style.Icon({
+					//src: '//www.refuges.info/images/icones/' + overpassType(properties) + '.png'
+					src: 'http://chemineur.fr/ext/Dominique92/GeoBB/types_points/' + overpassType(properties) + '.png'
+				})
 			};
-		}
+		},
+		label: formatLabel
 	});
 
-	return layer;
+	function formatLabel(p, f) { // p = properties
+		var language = {
+				hotel: 'h&ocirc;tel',
+				camp_site: 'camping',
+				convenience: 'alimentation',
+				supermarket: 'supermarch&egrave;'
+			},
+			type = overpassType(p),
+			description = [
+				(p.name.toLowerCase().indexOf(type) ? type : '') +
+				'*'.repeat(p.stars),
+				p.rooms ? p.rooms + ' chambre' : '',
+				p.place ? p.place + ' places' : '',
+				p.capacity ? p.capacity + ' places' : '',
+				p.ele ? parseInt(p.ele, 10) + 'm' : '',
+			].join(' ').replace( // Word translation if necessary
+				new RegExp(Object.keys(language).join('|'), 'gi'),
+				function(m) {
+					return language[m.toLowerCase()]; //TODO enlever de la boucle !!!
+				}
+			),
+			phone = p.phone || p['contact:phone'],
+			address = [
+				p['addr:housenumber'],
+				p['addr:street'],
+				p['addr:postcode'],
+				p['addr:city']
+			],
+			osmUrl = 'http://www.openstreetmap.org/' + (p.nodetype ? p.nodetype : 'node') + '/' + f.getId(),
+			popup = [
+				p.name ? '<b>' + p.name + '</b>' : '',
+				description.charAt(0).toUpperCase() + description.substr(1), // Uppercase the first letter
+				phone ? '&phone;<a href="tel:' + phone.replace(/[^0-9\+]+/ig, '') + '">' + phone + '</a>' : '',
+				p.email ? '&#9993;<a href="mailto:' + p.email + '">' + p.email + '</a>' : '',
+				p['addr:street'] ? address.join(' ') : '',
+				p.website ? '&#8943;<a target="_blank" href="' + p.website + '">' + (p.website.split('/')[2] || p.website) + '</a>' : '',
+				'&copy; Voir sur <a target="_blank" href="' + osmUrl + '">OSM</a>',
+//TODO option utilisateur (créer une nouvelle fiche chemineur) typeof option.label=='function'?option.label(p,f):''
+			];
+		return {
+			text: ('<p>' + popup.join('</p><p>') + '</p>').replace(/<p>\s*<\/p>/ig, '')
+		};
+	}
+
+	function overpassType(properties) {
+		var checkElements = document.getElementsByName(options.selector);
+		for (var e = 0; e < checkElements.length; e++)
+			if (checkElements[e].checked) {
+				var conditions = checkElements[e].value.split('"');
+				if (properties[conditions[1]] &&
+					properties[conditions[1]].match(conditions[3]))
+					return checkElements[e].id;
+			}
+/*DCMM*/console.log(new Error().stack);
+	}
 }
+
+//TODO TEST why https://dev.virtualearth.net/REST/v1/Imagery/Metadata/Aerial?uriScheme=https&include=ImageryProviders&key=ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt&c=en-us&jsonp=olc_89
 
 /**
  * Marqueurs
@@ -907,18 +959,19 @@ function controlLayersSwitcher(baseLayers) {
  * Permalink control
  * options.visible {true | false | undefined} add a controlPermalink button to the map.
  * options.init {true | false | undefined} use url hash or "controlPermalink" cookie to position the map.
- * "map" url hash or cookie = {<ZOOM>/<LON>/<LAT>/<LAYER>}
+ * "map" url hash or cookie = {map=<ZOOM>/<LON>/<LAT>/<LAYER>}
+ * options.defaultPos {<ZOOM>/<LON>/<LAT>/<LAYER>} if nothing else is defined.
  */
 //TODO TEST ne marche pas quand clique sur un onglet avec un permalink dans Chrome
-//TODO BUG appelle 2 fois la couche avec 2 définitions différentes à cause du cookie permalink
+//TODO BEST changer le hash du lien quand on zoome ?? Utile pour WRI ???
 function controlPermalink(options) {
 	var divElement = document.createElement('div'),
 		aElement = document.createElement('a'),
+		params,
 		control = new ol.control.Control({
 			element: divElement,
 			render: render
-		}),
-		params;
+		});
 	if (options.visible) {
 		divElement.className = 'ol-permalink';
 		aElement.innerHTML = 'Permalink';
@@ -927,20 +980,17 @@ function controlPermalink(options) {
 	}
 
 	function render(event) {
-		var view = event.map.getView(),
-			permalinkValue =
-			location.hash.match(/map=([^#,&;]+)/) || // Priority to the hash
-			document.cookie.match(/map=([^;]+)/); // Then the cookie
+		var view = event.map.getView();
 
 		// Set the map at the init
 		if (options.init !== false && // If use hash & cookies
 			typeof params == 'undefined') { // Only once
-			params = permalinkValue ? permalinkValue[1].split('/') : [];
-
-			if (params.length >= 3) { // Got lon/lat/zoom
-				view.setZoom(params[0]);
-				view.setCenter(ol.proj.transform([parseFloat(params[1]), parseFloat(params[2])], 'EPSG:4326', 'EPSG:3857'));
-			}
+			params =
+				location.hash.match(/map=([0-9\.]+)\/([0-9\.]+)\/([0-9\.]+)/) || // Priority to the hash
+				document.cookie.match(/map=([0-9\.]+)\/([0-9\.]+)\/([0-9\.]+)/) || // Then the cookie
+				(options.defaultPos || '6/2/47').match(/([0-9\.]+)\/([0-9\.]+)\/([0-9\.]+)/); // Appli default / Final
+			view.setZoom(params[1]);
+			view.setCenter(ol.proj.transform([parseFloat(params[2]), parseFloat(params[3])], 'EPSG:4326', 'EPSG:3857'));
 		}
 
 		// Check the current map zoom & position
