@@ -227,6 +227,7 @@ function layerSpain(serveur, layer) {
  */
 function layerBing(layer, key) {
 	return new ol.layer.Tile({
+//TODO BUG ceci est appelé à l'init et à chaque appel, ce qui n'est pas nécéssaire
 		source: new ol.source.BingMaps({
 			imagerySet: layer,
 			key: key,
@@ -238,10 +239,10 @@ function layerBing(layer, key) {
  * Ordnance Survey : Great Britain
  * Requires layerTileIncomplete
  */
-//TODO TEST Voir traffic réseau (autre couche = ord survey ??) => init permalink ???
 //TODO BEST attribution : Ordnance Survey
 function layerOS(key) {
 	return layerTileIncomplete([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
+//TODO BUG ceci est appelé à l'init et à chaque appel, ce qui n'est pas nécéssaire
 		100: new ol.source.BingMaps({
 			imagerySet: 'ordnanceSurvey',
 			key: key
@@ -305,7 +306,7 @@ function layersCollection(keys) {
 /**
  * Mem in cookies the checkbox content with name="name"
  */
-//TODO : en faire un vrai controle et inclure cette fonction
+//TODO BEST en faire un vrai controle et inclure cette fonction
 function controlPermanentCheckbox(name, callback) {
 	var checkElements = document.getElementsByName(name),
 		cookie =
@@ -466,6 +467,7 @@ function initLayerVectorURLListeners(map) {
 
 				// Well calculated shift of the label regarding the pointer position
 				var pixel = map.getPixelFromCoordinate(coordinates_);
+//TODO BUG ne détecte pas le bord haut en full screen
 				if (pixel[1] < map.popElement_.clientHeight + 12) { // On the top of the map (not enough space for it)
 					pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement_.clientWidth - 10;
 					pixel[1] += 2 - pixel[1];
@@ -575,7 +577,7 @@ function layerPointsWri() {
  */
 function chemineurLayer() {
 	return layerVectorURL({
-		//TODO BEST : ajuster le https au vrai besoin
+//TODO BEST : ajuster le https au vrai besoin
 		url: '//dc9.fr/chemineur/ext/Dominique92/GeoBB/gis.php?site=this&poi=3,8,16,20,23,28,30,40,44,64,58,62',
 		selector: 'chemineur',
 		style: function(properties) {
@@ -684,14 +686,15 @@ function layerOverpass(options) {
 			description = [
 				(p.name.toLowerCase().indexOf(type) ? type : '') +
 				'*'.repeat(p.stars),
-				p.rooms ? p.rooms + ' chambre' : '',
+				p.rooms ? p.rooms + ' chambres' : '',
 				p.place ? p.place + ' places' : '',
 				p.capacity ? p.capacity + ' places' : '',
 				p.ele ? parseInt(p.ele, 10) + 'm' : '',
 			].join(' ').replace( // Word translation if necessary
 				new RegExp(Object.keys(language).join('|'), 'gi'),
+//TODO BEST enlever la function de la boucle !!! => Remplacer par .replace
 				function(m) {
-					return language[m.toLowerCase()]; //TODO enlever de la boucle !!!
+					return language[m.toLowerCase()];
 				}
 			),
 			phone = p.phone || p['contact:phone'],
@@ -705,11 +708,11 @@ function layerOverpass(options) {
 			popup = [
 				p.name ? '<b>' + p.name + '</b>' : '',
 				description ? description.charAt(0).toUpperCase() + description.substr(1) : '', // Uppercase the first letter
-				phone ? '&phone;<a href="tel:' + phone.replace(/[^0-9\+]+/ig, '') + '">' + phone + '</a>' : '',
-				p.email ? '&#9993;<a href="mailto:' + p.email + '">' + p.email + '</a>' : '',
+				phone ? '&phone;<a title="Appeler" href="tel:' + phone.replace(/[^0-9\+]+/ig, '') + '">' + phone + '</a>' : '',
+				p.email ? '&#9993;<a title="Envoyer un mail" href="mailto:' + p.email + '">' + p.email + '</a>' : '',
 				p['addr:street'] ? address.join(' ') : '',
-				p.website ? '&#8943;<a target="_blank" href="' + p.website + '">' + (p.website.split('/')[2] || p.website) + '</a>' : '',
-				'&copy; Voir sur <a target="_blank" href="' + osmUrl + '">OSM</a>',
+				p.website ? '&#8943;<a title="Voir le site web" target="_blank" href="' + p.website + '">' + (p.website.split('/')[2] || p.website) + '</a>' : '',
+				'&copy; Voir sur <a title="Voir la fiche d\'origine sur openstreetmap" target="_blank" href="' + osmUrl + '">OSM</a>',
 //TODO option utilisateur (créer une nouvelle fiche chemineur) typeof option.label=='function'?option.label(p,f):''
 			];
 		return {
@@ -728,8 +731,6 @@ function layerOverpass(options) {
 			}
 	}
 }
-
-//TODO TEST why https://dev.virtualearth.net/REST/v1/Imagery/Metadata/Aerial?uriScheme=https&include=ImageryProviders&key=ArLngay7TxiroomF7HLEXCS7kTWexf1_1s1qiF7nbTYs2IkD3XLcUnvSlKbGRZxt&c=en-us&jsonp=olc_89
 
 /**
  * Marqueurs
