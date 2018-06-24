@@ -8,12 +8,15 @@
 //TODO END check , à la fin des tablos : http://jshint.com/
 
 /**
- * HACK send 'render' event to layers that wants to know their maps map
+ * HACK send 'onAdd' event to layers when added to a map
  */
 ol.Map.prototype.renderFrame_ = function(time) {
 	var layers = this.getLayerGroup().getLayerStatesArray();
 	for (var i = 0, ii = layers.length; i < ii; ++i)
-		layers[i].layer.dispatchEvent(new ol.MapEvent('render', this));
+		if (!layers[i].layer.map_) { // Only once
+			layers[i].layer.map_ = this; // Store the map where the layer is rendered
+			layers[i].layer.dispatchEvent(new ol.MapEvent('onadd', this));
+		}
 
 	ol.PluggableMap.prototype.renderFrame_.call(this, time);
 };
@@ -120,36 +123,33 @@ function layerIGN(key, layer, format) {
  * Virtual class
  * Displays OSM outside the zoom area, 
  * Displays blank outside the area of validity
- * Requires 'render' layer event
+ * Requires 'onadd' layer event
  */
 function layerTileIncomplete(extent, sources) {
 	var layer = new ol.layer.Tile(),
-		map,
-		view,
 		backgroundSource = new ol.source.Stamen({
 			layer: 'terrain'
 		});
-	layer.once('render', function(e) {//TODO BEST Remplacer par 'onAdd'
-		map = e.map;
-		view = map.getView();
-		view.on('change', change);
+	layer.on('onadd', function(e) {
+		e.map.getView().on('change', change);
 		change(); // At init
 	});
 
 	// Zoom has changed
 	function change() {
-		var resolution = 999999; // Max resolution
-		sources[resolution] = backgroundSource; // Add extrabound source on the top of the list
+		var view = layer.map_.getView(),
+			currentResolution = 999999; // Init loop at max resolution
+		sources[currentResolution] = backgroundSource; // Add extrabound source on the top of the list
 
 		// Search for sources according to the map resolution
-		if (ol.extent.intersects(extent, view.calculateExtent(map.getSize())))
-			resolution = Object.keys(sources).filter(function(event) { // HACK : use of filter to perform an action
+		if (ol.extent.intersects(extent, view.calculateExtent(layer.map_.getSize())))
+			currentResolution = Object.keys(sources).filter(function(event) { // HACK : use of filter to perform an action
 				return event > view.getResolution();
 			})[0];
 
 		// Update layer if necessary
-		if (layer.getSource() != sources[resolution])
-			layer.setSource(sources[resolution]);
+		if (layer.getSource() != sources[currentResolution])
+			layer.setSource(sources[currentResolution]);
 	}
 
 	return layer;
@@ -313,12 +313,7 @@ function controlPermanentCheckbox(name, callback) {
 		document.cookie.match('map-' + name + '=([^;]*)'); // Then the cookie
 
 	for (var e = 0; e < checkElements.length; e++) {
-		// Attach the action
-		checkElements[e].addEventListener('click', function(event) {
-			var list = permanentCheckboxList(name, event);
-			if (typeof callback == 'function')
-				callback(event, list)
-		}, false);
+		checkElements[e].addEventListener('click', permanentCheckboxClick, false); // Attach the action
 
 		if (cookie) // Set the checks accordingly with the cookie
 			checkElements[e].checked = cookie[1].split(',').indexOf(checkElements[e].value) !== -1;
@@ -326,6 +321,12 @@ function controlPermanentCheckbox(name, callback) {
 
 	// Call callback once at the init
 	callback(null, permanentCheckboxList(name));
+
+	function permanentCheckboxClick(event) {
+		var list = permanentCheckboxList(name, event);
+		if (typeof callback == 'function')
+			callback(event, list);
+	}
 }
 
 function permanentCheckboxList(name, event) {
@@ -367,7 +368,7 @@ ol.loadingstrategy.bboxDependant = function(extent, resolution) {
 //TODO BEST écarteur de pictos trop proches
 /**
  * GeoJson POI layer
- * Requires 'render' layer event
+ * Requires 'onadd' layer event
  * Requires ol.loadingstrategy.bboxDependant & controlPermanentCheckbox
  */
 function layerVectorURL(options) {
@@ -376,7 +377,7 @@ function layerVectorURL(options) {
 			url: function(extent, resolution, projection) {
 				var bbox = ol.proj.transformExtent(extent, projection.getCode(), 'EPSG:4326'),
 					list = permanentCheckboxList(options.selector).filter(function(e) {
-						return e !== 'on' // Remove the "all" input (default value = "on")
+						return e !== 'on'; // Remove the "all" input (default value = "on")
 					});
 				return typeof options.url == 'function' ?
 					options.url(bbox, list) :
@@ -396,20 +397,19 @@ function layerVectorURL(options) {
 	// Optional checkboxes to tune layer parameters
 	if (options.selector) {
 		controlPermanentCheckbox(options.selector, function(event, list) {
-			layer.setVisible(list.length)
+			layer.setVisible(list.length);
 			if (list.length)
 				source.clear(); // Redraw the layer
 		});
 	}
 
 	layer.options_ = options; //HACK Mem options for interactions
-	layer.once('render', function(event) {
-		var map = event.map;
-		initLayerVectorURLListeners(map);
+	layer.on('onadd', function(e) {
+		initLayerVectorURLListeners(e.map);
 
 		// Hover activity (coloring the feature)
 		if (typeof options.hover == 'function')
-			map.addInteraction(new ol.interaction.Select({
+			e.map.addInteraction(new ol.interaction.Select({
 				layers: [layer],
 				condition: ol.events.condition.pointerMove,
 				hitTolerance: 6, // Similar to other defaults
@@ -630,7 +630,7 @@ ol.format.OSMXMLPOI = function() {
 					}
 			}
 		return ol.format.XMLFeature.prototype.readFeatures.call(this, source, opt_options);
-	}
+	};
 };
 ol.inherits(ol.format.OSMXMLPOI, ol.format.OSMXML);
 
@@ -645,7 +645,7 @@ function layerOverpass(options) {
 		url: function(bbox) {
 			var bb = '(' + bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2] + ');',
 				list = permanentCheckboxList(options.selector).filter(function(e) {
-					return e !== 'on' // Remove the "all" input (default value = "on")
+					return e !== 'on'; // Remove the "all" input (default value = "on")
 				}),
 				args = [];
 
@@ -704,7 +704,7 @@ function layerOverpass(options) {
 			osmUrl = 'http://www.openstreetmap.org/' + (p.nodetype ? p.nodetype : 'node') + '/' + f.getId(),
 			popup = [
 				p.name ? '<b>' + p.name + '</b>' : '',
-				description.charAt(0).toUpperCase() + description.substr(1), // Uppercase the first letter
+				description ? description.charAt(0).toUpperCase() + description.substr(1) : '', // Uppercase the first letter
 				phone ? '&phone;<a href="tel:' + phone.replace(/[^0-9\+]+/ig, '') + '">' + phone + '</a>' : '',
 				p.email ? '&#9993;<a href="mailto:' + p.email + '">' + p.email + '</a>' : '',
 				p['addr:street'] ? address.join(' ') : '',
@@ -726,7 +726,6 @@ function layerOverpass(options) {
 					properties[conditions[1]].match(conditions[3]))
 					return checkElements[e].id;
 			}
-/*DCMM*/console.log(new Error().stack);
 	}
 }
 
@@ -735,9 +734,9 @@ function layerOverpass(options) {
 /**
  * Marqueurs
  * Requires proj4.js for swiss coordinates
- * Requires 'render' layer event
+ * Requires 'onadd' layer event
  */
-function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, lat], 'id-display', ['format de base', 'format suisse']
+function marqueur(imageUrl, ll, IdDisplay, format, movable) { // imageUrl, [lon, lat], 'id-display', ['format de base', 'format suisse']
 	var point = new ol.geom.Point(
 			ol.proj.fromLonLat(ll)
 		),
@@ -757,8 +756,8 @@ function marqueur(imageUrl, ll, IdDisplay, format, edit) { // imageUrl, [lon, la
 			style: iconStyle,
 			zIndex: 2
 		});
-	layer.once('render', function(e) {
-		if (edit) {
+	layer.on('onadd', function(e) {
+		if (movable) {
 			// Drag and drop
 			e.map.addInteraction(new ol.interaction.Modify({
 				features: new ol.Collection([iconFeature]),
@@ -923,7 +922,7 @@ function controlLayersSwitcher(baseLayers) {
 
 	function displayLayerSelector(event, list) {
 		// Check the first if none checked
-		if (list && list.length == 0)
+		if (list && list.length === 0)
 			selectorElement.firstChild.firstChild.checked = true;
 
 		// Leave only one checked except if Ctrl key is on
@@ -1195,7 +1194,7 @@ function controlDownloadGPX() {
 				map.addInteraction(select);
 			}
 		}
-	};
+	}
 
 	function download(layers) {
 		var fileName = 'trace.gpx',
@@ -1356,7 +1355,7 @@ function controlLineEditor(id, snapLayers) {
 
 			setMode(true); // Set edit mode by default
 		}
-	};
+	}
 
 	function snapFeatures() {
 		this.forEachFeature(
@@ -1446,7 +1445,7 @@ function controlLineEditor(id, snapLayers) {
 				for (var c in cs) {
 					var coordinates = cs[c];
 					if (coordinates.length > 1) // If the line owns at least 2 points
-						for (var i in [0, 0]) { // Twice (in both directions)
+						for (var i = 0; i < 2; i++) { // Twice (in both directions)
 							lines.push({
 								feature: fs[f],
 								first: coordinates[0], // The first point
