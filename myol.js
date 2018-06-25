@@ -355,7 +355,7 @@ function permanentCheckboxList(name, event) {
 }
 
 /**
- * BBOX limited strategy
+ * BBOX dependant strategy
  * Same that bbox but reloads if we zoom in because we delivered more points when zoom in
  * Returns {ol.loadingstrategy} to be used in layer definition
  */
@@ -453,20 +453,18 @@ function initLayerVectorURLListeners(map) {
 
 		function checkFeatureAtPixelHovered(feature_, layer_) {
 			// Feature's icons
-			if (!popup.getPosition() && // Only for the first one
-				layer_ && layer_.options_ && typeof layer_.options_.label == 'function') {
-				var properties_ = layer_.options_.label(feature_.getProperties(), feature_, layer_);
-				map.popElement_.innerHTML = properties_.text; // Set the label inner
-				map.popElement_.className = 'popup ' + (properties_.className || '');
+			if (!popup.getPosition() && // Only for the first feature on the hovered stack
+				layer_ && layer_.options_) {
 
-				// Now, calculate the anchor for the label
-				var coordinates_ = feature_.getGeometry().flatCoordinates; // If it's a point, just over it
-				if (coordinates_.length != 2)
-					coordinates_ = event.coordinate; // If it's a surface, over the pointer
+				// Calculate the label' anchor
+				var coordinates = feature_.getGeometry().flatCoordinates, // If it's a point, just over it
+					ll4326 = ol.proj.transform(coordinates, 'EPSG:3857', 'EPSG:4326');
+				if (coordinates.length != 2)
+					coordinates = event.coordinate; // If it's a surface, over the pointer
 				popup.setPosition(map.getView().getCenter()); // For popup size adjustment
 
-				// Well calculated shift of the label regarding the pointer position
-				var pixel = map.getPixelFromCoordinate(coordinates_);
+				// Shift of the label to stay into the map regarding the pointer position
+				var pixel = map.getPixelFromCoordinate(coordinates);
 //TODO BUG ne détecte pas le bord haut en full screen
 				if (pixel[1] < map.popElement_.clientHeight + 12) { // On the top of the map (not enough space for it)
 					pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement_.clientWidth - 10;
@@ -476,6 +474,15 @@ function initLayerVectorURLListeners(map) {
 					pixel[1] -= map.popElement_.clientHeight + 10;
 				}
 				popup.setPosition(map.getCoordinateFromPixel(pixel));
+
+				// Fill label class & text
+				var properties = feature_.getProperties();
+				properties.lon=Math.round(ll4326[0] * 100000) / 100000;
+				properties.lat=Math.round(ll4326[1] * 100000) / 100000;
+				map.popElement_.className = 'popup ' + (layer_.options_.labelClass || '');
+				map.popElement_.innerHTML =					typeof layer_.options_.label == 'function' ?
+						layer_.options_.label(properties, feature_, layer_) :
+						layer_.options_.label || '' ;
 			}
 
 			// Hover a clikable feature
@@ -522,9 +529,7 @@ function layerMassifsWri() {
 			};
 		},
 		label: function(properties) {
-			return {
-				text: properties.nom
-			};
+			return properties.nom;
 		},
 		hover: function(properties) {
 			return {
@@ -560,9 +565,7 @@ function layerPointsWri() {
 			};
 		},
 		label: function(properties) {
-			return {
-				text: properties.nom
-			};
+			return properties.nom;
 		},
 		click: function(properties) {
 			if (properties.lien)
@@ -588,9 +591,7 @@ function chemineurLayer() {
 			};
 		},
 		label: function(properties) {
-			return {
-				text: properties.nom
-			};
+			return properties.nom;
 		},
 		click: function(properties) {
 			if (properties.url)
@@ -643,7 +644,7 @@ ol.inherits(ol.format.OSMXMLPOI, ol.format.OSMXML);
  * Requires layerVectorURL
  */
 function layerOverpass(options) {
-	return layerVectorURL({
+	var layer = layerVectorURL({
 		url: function(bbox) {
 			var bb = '(' + bbox[1] + ',' + bbox[0] + ',' + bbox[3] + ',' + bbox[2] + ');',
 				list = permanentCheckboxList(options.selector).filter(function(e) {
@@ -672,19 +673,20 @@ function layerOverpass(options) {
 				})
 			};
 		},
+		labelClass: options.labelClass,
 		label: formatLabel
 	});
 
-	function formatLabel(p, f) { // p = properties
+	function formatLabel(p, f) { // p = properties, f = feature
 		var language = {
 				hotel: 'h&ocirc;tel',
 				camp_site: 'camping',
 				convenience: 'alimentation',
 				supermarket: 'supermarch&egrave;'
 			},
-			type = overpassType(p),
+			type = p.type = overpassType(p),
 			description = [
-				(p.name.toLowerCase().indexOf(type) ? type : '') +
+				(p.name && p.name.toLowerCase().indexOf(type) ? type : '') +
 				'*'.repeat(p.stars),
 				p.rooms ? p.rooms + ' chambres' : '',
 				p.place ? p.place + ' places' : '',
@@ -692,7 +694,6 @@ function layerOverpass(options) {
 				p.ele ? parseInt(p.ele, 10) + 'm' : '',
 			].join(' ').replace( // Word translation if necessary
 				new RegExp(Object.keys(language).join('|'), 'gi'),
-//TODO BEST enlever la function de la boucle !!! => Remplacer par .replace
 				function(m) {
 					return language[m.toLowerCase()];
 				}
@@ -704,7 +705,7 @@ function layerOverpass(options) {
 				p['addr:postcode'],
 				p['addr:city']
 			],
-			osmUrl = 'http://www.openstreetmap.org/' + (p.nodetype ? p.nodetype : 'node') + '/' + f.getId(),
+			osmUrl = p.url = 'http://www.openstreetmap.org/' + (p.nodetype ? p.nodetype : 'node') + '/' + f.getId(),
 			popup = [
 				p.name ? '<b>' + p.name + '</b>' : '',
 				description ? description.charAt(0).toUpperCase() + description.substr(1) : '', // Uppercase the first letter
@@ -712,12 +713,12 @@ function layerOverpass(options) {
 				p.email ? '&#9993;<a title="Envoyer un mail" href="mailto:' + p.email + '">' + p.email + '</a>' : '',
 				p['addr:street'] ? address.join(' ') : '',
 				p.website ? '&#8943;<a title="Voir le site web" target="_blank" href="' + p.website + '">' + (p.website.split('/')[2] || p.website) + '</a>' : '',
-				'&copy; Voir sur <a title="Voir la fiche d\'origine sur openstreetmap" target="_blank" href="' + osmUrl + '">OSM</a>',
-//TODO option utilisateur (créer une nouvelle fiche chemineur) typeof option.label=='function'?option.label(p,f):''
-			];
-		return {
-			text: ('<p>' + popup.join('</p><p>') + '</p>').replace(/<p>\s*<\/p>/ig, '')
-		};
+				'&copy; Voir sur <a title="Voir la fiche d\'origine sur openstreetmap" target="_blank" href="' + osmUrl + '">OSM</a>'
+			],
+			postLabel = typeof options.label == 'function' ? options.label(p, f) : options.label || '';
+
+		popup = popup.concat(typeof postLabel == 'object' ? postLabel : [postLabel]);
+		return ('<p>' + popup.join('</p><p>') + '</p>').replace(/<p>\s*<\/p>/ig, '');
 	}
 
 	function overpassType(properties) {
@@ -730,6 +731,8 @@ function layerOverpass(options) {
 					return checkElements[e].id;
 			}
 	}
+
+	return layer;
 }
 
 /**

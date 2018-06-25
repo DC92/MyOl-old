@@ -25,6 +25,9 @@
 			width: 90vw;
 			height: 60vw;
 		}
+		.label-overpass {
+			background: #cde;
+		}
 	</style>
 </head>
 <body>
@@ -80,12 +83,21 @@
 		var overpass = layerOverpass({
 				url: '//overpass-api.de/api/interpreter',
 				selector: 'overpass',
-				label: function(p){
-					return 'TEST';
+				labelClass: 'label-overpass',
+				label: function(p) {
+					return ['<hr/><a href="http://chemineur.fr/posting.php?mode=post',
+						'sid=ca86393fbad98908cf443bdeef5a04ca',
+						'f=' + p.type,
+						'url=' + encodeURI(p.url),
+						'nom=' + p.name,
+						'lon=' + p.lon,
+						'lat=' + p.lat
+					].join('&')+
+					'">Créer une fiche</a>';
 				}
 			}),
 			overlays = [
-//				layerPointsWri(),
+				layerPointsWri(),
 //				chemineurLayer(),
 //				layerMassifsWri(),
 				overpass,
@@ -94,15 +106,15 @@
 				target: 'map',
 				//	loadTilesWhileInteracting: true,
 				controls: controlsCollection(),
-/*				view: new ol.View({
-					center: ol.proj.fromLonLat([-4, 48]), // Bretagne
-					//center: ol.proj.fromLonLat([-3.5, 48.25]), // France
-					//center: ol.proj.fromLonLat([7, 47]), // Suisse
-					//center: ol.proj.fromLonLat([9.2, 45.5]), // Milan
-					//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
-					//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
-					zoom: 8
-				}),*/
+				/*				view: new ol.View({
+									center: ol.proj.fromLonLat([-4, 48]), // Bretagne
+									//center: ol.proj.fromLonLat([-3.5, 48.25]), // France
+									//center: ol.proj.fromLonLat([7, 47]), // Suisse
+									//center: ol.proj.fromLonLat([9.2, 45.5]), // Milan
+									//center: ol.proj.fromLonLat([7.07, 45.19]), // Rochemelon
+									//center: ol.proj.fromLonLat([-.1, 51.5]), // Londres
+									zoom: 8
+								}),*/
 				layers: overlays
 			}),
 			layers = layersCollection({
