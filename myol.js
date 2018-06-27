@@ -225,9 +225,9 @@ function layerSpain(serveur, layer) {
 /**
  * Bing (Microsoft)
  */
+//TODO BEST éviter d'appeler à l'init https://dev.virtualearth.net
 function layerBing(layer, key) {
 	return new ol.layer.Tile({
-//TODO BUG ceci est appelé à l'init et à chaque appel, ce qui n'est pas nécéssaire
 		source: new ol.source.BingMaps({
 			imagerySet: layer,
 			key: key,
@@ -240,9 +240,9 @@ function layerBing(layer, key) {
  * Requires layerTileIncomplete
  */
 //TODO BEST attribution : Ordnance Survey
+//TODO BEST éviter d'appeler à l'init https://dev.virtualearth.net
 function layerOS(key) {
 	return layerTileIncomplete([-841575, 6439351, 198148, 8589177], { // EPSG:27700 (G.B.)
-//TODO BUG ceci est appelé à l'init et à chaque appel, ce qui n'est pas nécéssaire
 		100: new ol.source.BingMaps({
 			imagerySet: 'ordnanceSurvey',
 			key: key
@@ -465,7 +465,6 @@ function initLayerVectorURLListeners(map) {
 
 				// Shift of the label to stay into the map regarding the pointer position
 				var pixel = map.getPixelFromCoordinate(coordinates);
-//TODO BUG ne détecte pas le bord haut en full screen
 				if (pixel[1] < map.popElement_.clientHeight + 12) { // On the top of the map (not enough space for it)
 					pixel[0] += pixel[0] < map.getSize()[0] / 2 ? 10 : -map.popElement_.clientWidth - 10;
 					pixel[1] += 2 - pixel[1];
@@ -828,10 +827,9 @@ function marqueur(imageUrl, ll, IdDisplay, format, movable) { // imageUrl, [lon,
  * options.render {function} called when the control is rendered.
  * options.action {function} called when the control is clicked.
  */
-var nextButtonTopPos = 6; // Top position of next button (em)
-//TODO BUG : pas de boutons de controles en full screen
-//TODO BUG mobiles ! boutons trop grand ou trop pres / Espacement entre boutons doit être proportionnel à font-size (em)
+//TODO BEST avoir des images svg online pour les boutons
 //TODO BEST automatiser position des autres boutons
+var nextButtonTopPos = 6; // Top position of next button (em)
 
 function controlButton(label, options) {
 	var buttonElement = document.createElement('button');
@@ -989,9 +987,9 @@ function controlPermalink(options) {
 		if (options.init !== false && // If use hash & cookies
 			typeof params == 'undefined') { // Only once
 			params =
-				location.hash.match(/map=([0-9\.]+)\/([0-9\.]+)\/([0-9\.]+)/) || // Priority to the hash
-				document.cookie.match(/map=([0-9\.]+)\/([0-9\.]+)\/([0-9\.]+)/) || // Then the cookie
-				(options.defaultPos || '6/2/47').match(/([0-9\.]+)\/([0-9\.]+)\/([0-9\.]+)/); // Appli default / Final
+				location.hash.match(/map=([-0-9\.]+)\/([-0-9\.]+)\/([-0-9\.]+)/) || // Priority to the hash
+				document.cookie.match(/map=([-0-9\.]+)\/([-0-9\.]+)\/([-0-9\.]+)/) || // Then the cookie
+				(options.defaultPos || '6/2/47').match(/([-0-9\.]+)\/([-0-9\.]+)\/([-0-9\.]+)/); // Appli default / Final
 			view.setZoom(params[1]);
 			view.setCenter(ol.proj.transform([parseFloat(params[2]), parseFloat(params[3])], 'EPSG:4326', 'EPSG:3857'));
 		}

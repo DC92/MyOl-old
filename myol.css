@@ -10,6 +10,8 @@
 }
 .ol-control button,
 .ol-control button:focus {
+	height: 25px;
+	width: 25px;
 	background-color: white;
 	color: black !important;
 	margin: 0;
@@ -35,6 +37,10 @@
 }
 .ol-geocoder .gcd-gl-control {
 	background-color: rgba(0, 0, 0, 0);
+}
+.ol-geocoder .gcd-gl-control button {
+	height: 25px;
+	width: 25px;
 }
 .ol-geocoder .gcd-gl-btn {
 	top: 0;
@@ -89,7 +95,7 @@
 }
 :-webkit-full-screen { /* HACK bug in Chrome & Edge */
 	width: 100vw !important;
-	height: 100vw !important;
+	height: 100vh !important;
 }
 
 /* Print 
