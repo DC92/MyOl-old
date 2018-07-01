@@ -3,9 +3,10 @@
  * (C) Dominique Cavailhez 2017
  * Check https://github.com/Dominique92/MyOl
  */
-//TODO BEST Site off line, application
+//TODO END test with ol non debug
 //TODO END http://jsbeautifier.org/
 //TODO END check , à la fin des tablos : http://jshint.com/
+//TODO BEST Site off line, application
 
 /**
  * HACK send 'onAdd' event to layers when added to a map
@@ -1291,6 +1292,7 @@ function controlsCollection() {
  * Requires controlButton
  */
 //TODO BUG stick ne marche pas
+//TODO BUG fait un point si on clique sans ALT pour supprimer un sommet
 function controlLineEditor(id, snapLayers) {
 	var textareaElement = document.getElementById(id), // <textarea> element
 		format = new ol.format.GeoJSON(),
