@@ -1,6 +1,8 @@
 # MyOl
 DEVELOPMENT AREA DON'T USE
 
+TEST
+
 Code & all tiled layers use EPSG:3857 spherical mercator projection
 
 The coding rules are volontary simple & don't follow all openlayers's
